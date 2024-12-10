@@ -45,6 +45,18 @@ export default function TypingTest() {
     }
   }, [timeLeft, testEnded, testStarted]);
 
+  // Add new useEffect for keyboard handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (testEnded && e.key === 'Enter') {
+        startNewTest();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [testEnded]); // Only re-add listener if testEnded changes
+
   const startNewTest = () => {
     const newWords = generateWordSet(50);
     setWords(newWords);
@@ -256,12 +268,15 @@ export default function TypingTest() {
               ))}
             </ul>
           </div>
-          <button
-            className="mt-4"
-            onClick={startNewTest}
-          >
-            Start Next Test
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              className="mt-4"
+              onClick={startNewTest}
+            >
+              Start Next Test
+            </button>
+            <span className="text-sm text-gray-400">[press enter]</span>
+          </div>
         </div>
       )}
     </div>
