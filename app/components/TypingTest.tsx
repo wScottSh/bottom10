@@ -28,6 +28,7 @@ export default function TypingTest() {
   const inputRef = useRef<HTMLInputElement>(null);
   const wordsContainerRef = useRef<HTMLDivElement>(null);
   const [currentCharIndex, setCurrentCharIndex] = useState(0);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     startNewTest();
@@ -68,31 +69,49 @@ export default function TypingTest() {
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (testEnded) return;
+    
     const value = e.target.value;
+    const currentWord = words[currentWordIndex];
+
+    // Guard against undefined currentWord
+    if (!currentWord) {
+      endTest();
+      return;
+    }
+    
+    // Only allow backspacing when there's an error
+    if (hasError && value.length >= currentInput.length) {
+      return;
+    }
+
     setCurrentInput(value);
     setCurrentCharIndex(value.length);
 
+    // Check for errors in current word
+    if (value.length > 0 && !currentWord.startsWith(value)) {
+      setHasError(true);
+    } else {
+      setHasError(false);
+    }
+
     if (value.endsWith(' ')) {
-      const typedWord = value.trim();
-      const currentWord = words[currentWordIndex];
-      const timeTaken = Date.now() - typedWordStartTime;
-      const errors = typedWord !== currentWord ? 1 : 0;
-
-      setTypedWordsData([
-        ...typedWordsData,
-        { word: currentWord, time: timeTaken, errors },
-      ]);
-
-      if (typedWord === currentWord) {
+      if (value.trim() === currentWord) {
+        setTypedWordsData([
+          ...typedWordsData,
+          { 
+            word: currentWord, 
+            time: Date.now() - typedWordStartTime, 
+            errors: hasError ? 1 : 0 
+          },
+        ]);
+        
         setCorrectWords(correctWords + 1);
-      } else {
-        setIncorrectWords(incorrectWords + 1);
+        setCurrentWordIndex(currentWordIndex + 1);
+        setCurrentInput('');
+        setCurrentCharIndex(0);
+        setTypedWordStartTime(Date.now());
+        setHasError(false);
       }
-
-      setCurrentWordIndex(currentWordIndex + 1);
-      setCurrentInput('');
-      setTypedWordStartTime(Date.now());
-      setCurrentCharIndex(0);
     }
   };
 
@@ -177,7 +196,9 @@ export default function TypingTest() {
               <span
                 key={wordIndex}
                 className={`word ${
-                  wordIndex === currentWordIndex ? 'current' : ''
+                  wordIndex === currentWordIndex 
+                    ? `current ${hasError ? 'text-[#ca4754]' : ''}` 
+                    : ''
                 } ${wordIndex < currentWordIndex ? 'completed' : ''}`}
               >
                 {word.split('').map((char, charIndex) => (
@@ -186,7 +207,9 @@ export default function TypingTest() {
                     className="char relative pb-[0.3em]"  // Added padding-bottom
                   >
                     {char}
-                    {wordIndex === currentWordIndex && charIndex === currentCharIndex && (
+                    {wordIndex === currentWordIndex && 
+                     charIndex === currentCharIndex && 
+                     !hasError && (
                       <span className="absolute left-0 bottom-[0.15em] w-full h-[2px] bg-[#e2b714] transition-all duration-[50ms] ease-out" />
                     )}
                   </span>
