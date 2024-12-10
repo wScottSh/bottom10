@@ -122,16 +122,16 @@ export default function TypingTest() {
   };
 
   const generateWordSet = (count: number) => {
-    // Get bottom words from global stats if available
+    // Get all scored words from globalWordStats
     const scoredWords = Object.entries(globalWordStats)
       .filter(([, stats]) => stats.lastScore > 0)
       .sort(([, statsA], [, statsB]) => statsB.lastScore - statsA.lastScore)
       .map(([word]) => word);
 
-    // If we have enough scored words, use the worst 10
-    if (scoredWords.length >= 10) {
-      const bottomWords = scoredWords.slice(0, 10);
-      const frequencies = generateFrequencyDistribution(count, bottomWords);
+    if (scoredWords.length > 0) {
+      // Always use just the worst 10 (or all if less than 10)
+      const worstWords = scoredWords.slice(0, Math.min(10, scoredWords.length));
+      const frequencies = generateFrequencyDistribution(count, worstWords);
       const repeatedWords: string[] = [];
       
       Object.entries(frequencies).forEach(([word, freq]) => {
@@ -143,16 +143,18 @@ export default function TypingTest() {
       return shuffleArray(repeatedWords);
     }
 
-    // If not enough scored words, use first N words from wordList
+    // Only use sequential words from wordList for the very first test
     const initialWords = wordList.slice(0, count);
     return shuffleArray(initialWords);
   };
 
   const getBottomWords = () => {
-    const wordStats = Object.entries(aggregateWordStats()).sort(
-      ([, a], [, b]) => b.normalizedScore - a.normalizedScore
-    );
-    return wordStats.slice(0, 10).map(([word]) => word);
+    const wordStats = Object.entries(globalWordStats)
+      .filter(([, stats]) => stats.lastScore > 0)
+      .sort(([, a], [, b]) => b.lastScore - a.lastScore)
+      .map(([word]) => word)
+      .slice(0, 10);
+    return wordStats;
   };
 
   const aggregateWordStats = () => {
@@ -301,29 +303,8 @@ export default function TypingTest() {
   };
 
   const prepareNextTest = () => {
-    const storedData: Record<string, WordData> = JSON.parse(
-      localStorage.getItem('performanceData') || '{}'
-    );
-
-    if (Object.keys(storedData).length === 0) {
-      setAllWords(wordList);
-      startNewTest();
-      return;
-    }
-
-    const wordAverages = Object.keys(storedData).map((word) => ({
-      word,
-      // Calculate average time per character
-      averageTime: normalizeWordTime(
-        storedData[word].totalTime / storedData[word].attempts,
-        word.length
-      ),
-      errorRate: (storedData[word].errors / storedData[word].attempts) * 100,
-    }));
-
-    wordAverages.sort((a, b) => b.averageTime - a.averageTime);
-    const bottomWords = wordAverages.slice(0, 10).map((item) => item.word);
-    
+    // No need to read from localStorage since we're using globalWordStats
+    const bottomWords = getBottomWords();
     setAllWords(bottomWords.length > 0 ? bottomWords : wordList);
     const newWords = generateWordSet(wordCount);
     setWords(newWords);
