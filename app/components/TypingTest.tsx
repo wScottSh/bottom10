@@ -29,6 +29,7 @@ export default function TypingTest() {
   const [currentCharIndex, setCurrentCharIndex] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [isWordErrored, setIsWordErrored] = useState(false);  // Track if word has had an error
+  const [testStarted, setTestStarted] = useState(false);
 
   useEffect(() => {
     startNewTest();
@@ -36,13 +37,13 @@ export default function TypingTest() {
   }, []);
 
   useEffect(() => {
-    if (timeLeft > 0 && !testEnded) {
+    if (timeLeft > 0 && testStarted && !testEnded) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
       return () => clearTimeout(timer);
     } else if (timeLeft === 0 && !testEnded) {
       endTest();
     }
-  }, [timeLeft, testEnded]);
+  }, [timeLeft, testEnded, testStarted]);
 
   const startNewTest = () => {
     const newWords = generateWordSet(50);
@@ -55,6 +56,7 @@ export default function TypingTest() {
     setTestEnded(false);
     setStartTime(Date.now());
     setTypedWordStartTime(Date.now());
+    setTestStarted(false);
     inputRef.current?.focus();
   };
 
@@ -75,6 +77,12 @@ export default function TypingTest() {
     if (!currentWord) {
       endTest();
       return;
+    }
+
+    // Start the timer on first keypress
+    if (!testStarted && value.length === 1) {
+      setTestStarted(true);
+      setTypedWordStartTime(Date.now());
     }
 
     // Only allow typing if:
@@ -176,7 +184,9 @@ export default function TypingTest() {
       {!testEnded ? (
         <>
           <div className="flex items-center justify-between w-full max-w-[800px]">
-            <div className="text-xl">Time Left: {timeLeft}s</div>
+            <div className="text-xl">
+              {testStarted ? `Time Left: ${timeLeft}s` : 'Type to start'}
+            </div>
             <button onClick={toggleSettings}>
               {showSettings ? 'Hide Settings' : 'Show Settings'}
             </button>
