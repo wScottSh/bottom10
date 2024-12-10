@@ -205,9 +205,9 @@ export default function TypingTest() {
                 key={wordIndex}
                 className={`word ${
                   wordIndex === currentWordIndex 
-                    ? `current ${isWordErrored ? 'text-[#ca4754]' : ''}` 
-                    : ''
-                } ${wordIndex < currentWordIndex ? 'completed' : ''}`}
+                    ? isWordErrored ? 'error' : 'current' 
+                    : wordIndex < currentWordIndex ? 'completed' : ''
+                }`}
               >
                 {word.split('').map((char, charIndex) => (
                   <span 

@@ -48,14 +48,19 @@ body {
   margin-right: 0.6rem;
   font-family: 'Roboto Mono', monospace;
   display: inline-block;
+  color: var(--text-secondary); /* Default color for untyped words */
 }
 
 .word.current {
-  color: var(--text-primary);
+  color: var(--text-primary); /* White for current word */
 }
 
 .word.completed {
-  color: var(--accent);
+  color: var(--accent); /* Yellow for completed words */
+}
+
+.word.error {
+  color: var(--error); /* Red for error state */
 }
 
 button {
