@@ -56,22 +56,32 @@ export default function TypingTest() {
   }, [testEnded]); // Only re-add listener if testEnded changes
 
   const startNewTest = () => {
-    const newWords = generateWordSet(wordCount); // Use wordCount instead of hardcoded value
-    setWords(newWords);
-    setCurrentWordIndex(0);
-    setCorrectWords(0);
-    setCurrentInput('');
-    setTypedWordsData([]);
-    setTestEnded(false);
-    setStartTime(Date.now());
-    setTypedWordStartTime(Date.now());
-    setTestStarted(false);
-    inputRef.current?.focus();
+    // Generate words from current allWords state
+    const newWords = generateWordSet(wordCount);
+    // Only proceed if we have valid words
+    if (newWords.length > 0) {
+      setWords(newWords);
+      setCurrentWordIndex(0);
+      setCorrectWords(0);
+      setCurrentInput('');
+      setTypedWordsData([]);
+      setTestEnded(false);
+      setStartTime(Date.now());
+      setTypedWordStartTime(Date.now());
+      setTestStarted(false);
+      inputRef.current?.focus();
+    }
   };
 
   const generateWordSet = (count: number) => {
-    // Ensure we never return an empty array
-    if (!allWords.length) return wordList.slice(0, count);
+    // If we have fewer words than needed, repeat them
+    if (allWords.length < count) {
+      const repeatedWords = [];
+      while (repeatedWords.length < count) {
+        repeatedWords.push(...allWords);
+      }
+      return shuffleArray(repeatedWords).slice(0, count);
+    }
     return shuffleArray(allWords).slice(0, count);
   };
 
@@ -188,7 +198,6 @@ export default function TypingTest() {
 
     const wordAverages = Object.keys(storedData).map((word) => ({
       word,
-      // Use raw timing data with attempt weighting
       averageTime: normalizeWordTime(
         storedData[word].totalTime / storedData[word].attempts,
         storedData[word].attempts
@@ -198,9 +207,10 @@ export default function TypingTest() {
 
     wordAverages.sort((a, b) => b.averageTime - a.averageTime);
 
+    // Get the 10 slowest words
     const bottomWords = wordAverages.slice(0, 10).map((item) => item.word);
     
-    // Ensure we never set an empty array
+    // Set allWords to either bottom words or full word list
     setAllWords(bottomWords.length > 0 ? bottomWords : wordList);
   };
 
