@@ -26,6 +26,8 @@ export default function TypingTest() {
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [testDuration, setTestDuration] = useState<number>(60);
   const inputRef = useRef<HTMLInputElement>(null);
+  const wordsContainerRef = useRef<HTMLDivElement>(null);
+  const [currentCharIndex, setCurrentCharIndex] = useState(0);
 
   useEffect(() => {
     startNewTest();
@@ -68,6 +70,7 @@ export default function TypingTest() {
     if (testEnded) return;
     const value = e.target.value;
     setCurrentInput(value);
+    setCurrentCharIndex(value.length);
 
     if (value.endsWith(' ')) {
       const typedWord = value.trim();
@@ -89,6 +92,7 @@ export default function TypingTest() {
       setCurrentWordIndex(currentWordIndex + 1);
       setCurrentInput('');
       setTypedWordStartTime(Date.now());
+      setCurrentCharIndex(0);
     }
   };
 
@@ -143,10 +147,7 @@ export default function TypingTest() {
   };
 
   return (
-    <div
-      className="flex flex-col items-center gap-4"
-      onClick={() => inputRef.current?.focus()}
-    >
+    <div className="flex flex-col items-center gap-4" onClick={() => inputRef.current?.focus()}>
       {!testEnded ? (
         <>
           <div className="flex items-center justify-between w-full max-w-[800px]">
@@ -168,15 +169,29 @@ export default function TypingTest() {
               </label>
             </div>
           )}
-          <div className="text-2xl min-h-[120px] max-w-[800px] leading-relaxed">
-            {words.map((word, index) => (
+          <div 
+            ref={wordsContainerRef}
+            className="relative text-2xl min-h-[120px] max-w-[800px] leading-relaxed"
+          >
+            {words.map((word, wordIndex) => (
               <span
-                key={index}
+                key={wordIndex}
                 className={`word ${
-                  index === currentWordIndex ? 'current' : ''
-                } ${index < currentWordIndex ? 'completed' : ''}`}
+                  wordIndex === currentWordIndex ? 'current' : ''
+                } ${wordIndex < currentWordIndex ? 'completed' : ''}`}
               >
-                {word}
+                {word.split('').map((char, charIndex) => (
+                  <span 
+                    key={charIndex} 
+                    className="char relative pb-[0.3em]"  // Added padding-bottom
+                  >
+                    {char}
+                    {wordIndex === currentWordIndex && charIndex === currentCharIndex && (
+                      <span className="absolute left-0 bottom-[0.15em] w-full h-[2px] bg-[#e2b714] transition-all duration-[50ms] ease-out" />
+                    )}
+                  </span>
+                ))}
+                {' '}
               </span>
             ))}
           </div>

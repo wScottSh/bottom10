@@ -47,11 +47,11 @@ body {
 .word {
   margin-right: 0.6rem;
   font-family: 'Roboto Mono', monospace;
+  display: inline-block;
 }
 
 .word.current {
   color: var(--text-primary);
-  text-decoration: underline;
 }
 
 .word.completed {
@@ -72,4 +72,12 @@ input[type="number"] {
 
 label {
   @apply text-white;
+}
+
+.char {
+  display: inline-block;
+  width: 0.6em;
+  text-align: center;
+  line-height: 1;
+  vertical-align: bottom;
 }
