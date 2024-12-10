@@ -128,6 +128,24 @@ export default function TypingTest() {
       setIsWordErrored(true);
     }
 
+    // Check if this is the last word and it's complete
+    const isLastWord = currentWordIndex === words.length - 1;
+    const isWordComplete = value === currentWord;
+    
+    if (isLastWord && isWordComplete) {
+      setTypedWordsData([
+        ...typedWordsData,
+        { 
+          word: currentWord, 
+          time: Date.now() - typedWordStartTime, 
+          errors: isWordErrored ? 1 : 0 
+        },
+      ]);
+      endTest();
+      return;
+    }
+
+    // Handle normal word completion with space
     if (value.endsWith(' ')) {
       if (value.trim() === currentWord) {
         setTypedWordsData([
