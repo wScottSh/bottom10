@@ -109,17 +109,17 @@ export default function TypingTest() {
 
     // Handle word completion with space
     if (value.endsWith(' ')) {
-      const typedWord = value.trim();
-      if (typedWord === currentWord) {
+      // Only process space if the word is complete and correct
+      if (value.trim() === currentWord) {
         setTypedWordsData([
           ...typedWordsData,
-          {
-            word: currentWord,
-            time: Date.now() - typedWordStartTime,
-            errors: isWordErrored ? 1 : 0
+          { 
+            word: currentWord, 
+            time: Date.now() - typedWordStartTime, 
+            errors: isWordErrored ? 1 : 0 
           },
         ]);
-
+        
         setCorrectWords(correctWords + 1);
         setCurrentWordIndex(currentWordIndex + 1);
         setCurrentInput('');
@@ -135,28 +135,38 @@ export default function TypingTest() {
       return;
     }
 
-    // If there's an existing error and trying to add more characters, keep the current input
-    if (hasError && value.length > currentInput.length) {
+    // Handle backspace
+    if (value.length < currentInput.length) {
+      setCurrentInput(value);
+      // Always allow cursor to move when backspacing
+      setCurrentCharIndex(value.length);
+      // Reset error states if backspacing to empty
+      if (value.length === 0) {
+        setHasError(false);
+        setIsWordErrored(false);
+      }
       return;
     }
 
-    // Check for new error only if there isn't an existing error
-    if (!hasError && !currentWord.startsWith(value)) {
+    // Handle new character input
+    const newChar = value[value.length - 1];
+    const expectedChar = currentWord[currentInput.length];
+
+    if (newChar !== expectedChar) {
+      // Error case: Update error states
       setHasError(true);
       setIsWordErrored(true);
-      // Keep the input at the error position
-      setCurrentInput(value.slice(0, currentCharIndex));
+      // Keep cursor at current position, but allow input to be stored
+      // This enables backspacing while maintaining visual cursor position
+      setCurrentInput(value.slice(0, currentCharIndex + 1));
       return;
     }
 
-    // Allow input changes
+    // Correct character input
     setCurrentInput(value);
     setCurrentCharIndex(value.length);
-
-    // Reset error state if backspaced to start
-    if (value.length === 0) {
+    if (hasError && value === currentWord.slice(0, value.length)) {
       setHasError(false);
-      setIsWordErrored(false);
     }
   };
 
