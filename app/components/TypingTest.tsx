@@ -20,7 +20,7 @@ export default function TypingTest() {
   }
 
   // Add new state for sidebar and global word stats
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);  // Changed to true
   const [globalWordStats, setGlobalWordStats] = useState(() => {
     // Initialize with empty stats for all words
     return wordList.reduce((acc, word) => ({

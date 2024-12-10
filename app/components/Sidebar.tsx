@@ -42,15 +42,18 @@ export default function Sidebar({
       <div className="h-full overflow-y-auto p-4">
         <h2 className="text-lg mb-4 text-[#e2e2e2]">Word List</h2>
         <ul className="space-y-1">
-          {sortedWords.map(([word, stats]) => (
-            <li key={word} className="flex justify-between text-sm">
-              <span>{word}</span>
-              {stats.lastScore > 0 && (
-                <span className="text-[#e2b714]">
-                  {Math.round(stats.lastScore)}
-                </span>
-              )}
-            </li>
+          {sortedWords.map(([word, stats], index) => (
+            <>
+              <li key={word} className="flex justify-between text-sm">
+                <span>{word}</span>
+                {stats.lastScore > 0 && (
+                  <span className="text-[#e2b714]">
+                    {Math.round(stats.lastScore)}
+                  </span>
+                )}
+              </li>
+              {index === 9 && <hr className="my-2 border-[#e2b714]" />}
+            </>
           ))}
         </ul>
       </div>
