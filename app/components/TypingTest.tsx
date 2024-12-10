@@ -122,26 +122,30 @@ export default function TypingTest() {
   };
 
   const generateWordSet = (count: number) => {
-    // For first test, use first N words from word list
-    if (!typedWordsData.length) {
-      const initialWords = wordList.slice(0, count);
-      return shuffleArray(initialWords);
+    // Get bottom words from global stats if available
+    const scoredWords = Object.entries(globalWordStats)
+      .filter(([, stats]) => stats.lastScore > 0)
+      .sort(([, statsA], [, statsB]) => statsB.lastScore - statsA.lastScore)
+      .map(([word]) => word);
+
+    // If we have enough scored words, use the worst 10
+    if (scoredWords.length >= 10) {
+      const bottomWords = scoredWords.slice(0, 10);
+      const frequencies = generateFrequencyDistribution(count, bottomWords);
+      const repeatedWords: string[] = [];
+      
+      Object.entries(frequencies).forEach(([word, freq]) => {
+        for (let i = 0; i < freq; i++) {
+          repeatedWords.push(word);
+        }
+      });
+
+      return shuffleArray(repeatedWords);
     }
 
-    // For subsequent tests, use frequency-based repetition of bottom words
-    const bottomWords = getBottomWords();
-    if (!bottomWords.length) return shuffleArray(wordList).slice(0, count);
-
-    const frequencies = generateFrequencyDistribution(count, bottomWords);
-    const repeatedWords: string[] = [];
-    
-    Object.entries(frequencies).forEach(([word, freq]) => {
-      for (let i = 0; i < freq; i++) {
-        repeatedWords.push(word);
-      }
-    });
-
-    return shuffleArray(repeatedWords);
+    // If not enough scored words, use first N words from wordList
+    const initialWords = wordList.slice(0, count);
+    return shuffleArray(initialWords);
   };
 
   const getBottomWords = () => {
