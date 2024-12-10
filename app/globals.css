@@ -45,7 +45,7 @@ body {
 }
 
 .word {
-  margin-right: 0.6rem;
+  /* margin-right: 0.6rem; */
   font-family: 'Roboto Mono', monospace;
   display: inline-block;
   color: var(--text-secondary); /* Default color for untyped words */

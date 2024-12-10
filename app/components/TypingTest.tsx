@@ -295,7 +295,7 @@ export default function TypingTest() {
                 {word.split('').map((char, charIndex) => (
                   <span 
                     key={charIndex} 
-                    className="char relative pb-[0.3em]"  // Added padding-bottom
+                    className="char relative pb-[0.3em]"
                   >
                     {char}
                     {wordIndex === currentWordIndex && 
@@ -304,9 +304,15 @@ export default function TypingTest() {
                     )}
                   </span>
                 ))}
-                {' '}
+                <span className="char relative pb-[0.3em]">
+                  {'\u00A0'}
+                  {wordIndex === currentWordIndex && 
+                   word.length === currentCharIndex && (
+                    <span className="absolute left-0 bottom-[0.15em] w-full h-[2px] bg-[#e2b714] transition-all duration-[50ms] ease-out" />
+                  )}
+                </span>{/* Remove whitespace here */}
               </span>
-            ))}
+            ))}{/* Remove whitespace here */}
           </div>
           <input
             ref={inputRef}

@@ -10,12 +10,17 @@
   max-width: 800px;
   min-height: 120px;
   line-height: 1.5;
-  font-size: 1.5rem;
+  font-size: 0; /* Eliminate spacing between inline elements */
   color: var(--text-secondary);
 }
 
+.word, .char {
+  font-size: 1.5rem; /* Reset to desired font size */
+}
+
 .word {
-  margin-right: 0.6rem;
+  display: inline-block;
+  margin-right: -0.25em; /* Compensate for space character width */
 }
 
 .word.current {
