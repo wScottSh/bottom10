@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bottom 10 Typing
 
-## Getting Started
+Bottom 10 Typing is a web-based typing tutor that applies the principle of "the squeaky wheel gets the grease" to your typing practice. Instead of practicing large, uniform sets of words, it automatically focuses your attention on the words you struggle with most. By drilling down repeatedly on the slowest words in your skillset, you rapidly gain muscle memory efficiency where you need it most, accelerating your improvement.
 
-First, run the development server:
+## Core Idea
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Typing improvement happens fastest when you focus on the words you type the slowest. Traditional typing tests and tutors cycle through large sets of words evenly, which can be inefficient. Bottom 10 Typing flips this around: after each test, it identifies your "worst performing" words — the slowest words in your personal word set — and drills them in the next session. Much like spaced repetition emphasizes the flashcards that give you the most trouble, or a Kanban board’s limits highlight bottlenecks, Bottom 10 Typing makes inefficiencies unmistakably "loud," drawing your focus directly to them.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## How It Works
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Word Set**:  
+   Start with a default set of words (e.g., the top 1000 English words). You can supply your own word list as a simple text file or array.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. **Tracking Performance**:  
+   Each time you take a short test (a sequence of words presented randomly), every word typed is recorded along with your typing speed and accuracy. Over time, this forms a performance profile for each word.
 
-## Learn More
+3. **Dynamic Focus**:  
+   After each test, the system automatically identifies the bottom 10 words (by typing speed) and prepares the next test using only those words, in random order. As your slowest words improve, new "worst" words will emerge and be cycled into the training set. This ensures continuous, targeted improvement.
 
-To learn more about Next.js, take a look at the following resources:
+4. **Short Tests, Quick Feedback**:  
+   Tests should be short: 30 seconds to a minute at a time. The idea is to get immediate feedback on your speed for each slow word, and then cycle quickly into the next set, adjusting as you improve.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. **Muscle Memory Development**:  
+   By repeatedly focusing on the words that are slowest, you develop automaticity. Over time, your speed on these problem words matches the speed of words you already type effortlessly.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Key Features
 
-## Deploy on Vercel
+- **Default Word Set**:  
+  Comes with a top 1000 English words list by default.  
+  Easily load a custom list of words via a configuration file.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Data Collection**:  
+  Every test stores per-word metrics:
+  - Average speed (ms per character or WPM).
+  - Accuracy and error rate (if you choose to track keystroke errors).
+  
+- **Adaptive, Squeaky-Wheel Logic**:  
+  At the end of each test, the worst-performing words are identified and become the next test set.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Randomization**:  
+  Within the "worst performing words," each test randomizes their order. This ensures you don't just memorize a sequence but build true muscle memory on each individual word.
+
+- **Simple UI**:  
+  Similar to monkeytype or keybr style, a minimal interface focusing on the text entry box and a list of words you’re practicing.
+
+## Implementation Details
+
+- **Frontend**:  
+  A minimal single-page application.  
+  - Input field for typing.  
+  - Display the current test words in sequence.  
+  - Progress bar or word count to show how far into the test you are.  
+  - Stats display after each test (or on-demand): show updated average speed per word, highlight the worst words, and load the next test with these words.
+
+- **Backend**:  
+  Could be a simple REST API, or entirely client-side using local storage for personal practice. For multi-user scenarios:
+  - A small backend (Node.js/Express) storing performance data (JSON in a database or flat file).  
+  - API endpoints to:
+    - GET the next test words.
+    - POST test results (per-word times and errors).
+    - GET performance stats for all words.
+  
+- **Algorithm**:
+  1. Maintain a dictionary of words → {average_speed, number_of_samples}.
+  2. After each test:
+     - For each word, update its speed metric with a running average.
+     - Sort the word list by speed.
+     - Extract the bottom 10 words to form the next test.
+  
+- **Data Persistence**:  
+  A local DB (SQLite), in-browser IndexedDB, or a server-side file. The focus is on simplicity. For a personal project, local browser storage might be enough.
+
+- **Extensibility**:  
+  - Add accuracy metrics: track error percentage for each word.
+  - Add configurable test lengths or thresholds for "worst performing" sets.
+  - Integrate with spaced repetition concepts: once a word consistently performs above a threshold, mark it as "mastered" and remove it from the cycle.
