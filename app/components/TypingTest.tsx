@@ -136,11 +136,12 @@ export default function TypingTest() {
         setTypedWordStartTime(Date.now());
         setHasError(false);
         setIsWordErrored(false);
-      }
-    }
 
-    if (currentWordIndex + 1 === words.length) {
-      endTest();
+        // Only end test after successfully completing the last word
+        if (currentWordIndex + 1 === words.length) {
+          endTest();
+        }
+      }
     }
   };
 
