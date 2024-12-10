@@ -18,6 +18,16 @@ export default function Sidebar({
   wordStats: Record<string, WordStats>;
   toggleSidebar: () => void;
 }) {
+  const sortedWords = Object.entries(wordStats)
+    .sort(([, a], [, b]) => {
+      // Put words with no score at the bottom
+      if (!a.lastScore && !b.lastScore) return 0;
+      if (!a.lastScore) return 1;
+      if (!b.lastScore) return -1;
+      // Sort by score, highest (worst) first
+      return b.lastScore - a.lastScore;
+    });
+
   return (
     <div className={`fixed left-0 top-0 h-full bg-[#2c2c2c] transition-all duration-300 ${
       isOpen ? 'w-64' : 'w-0'
@@ -32,7 +42,7 @@ export default function Sidebar({
       <div className="h-full overflow-y-auto p-4">
         <h2 className="text-lg mb-4 text-[#e2e2e2]">Word List</h2>
         <ul className="space-y-1">
-          {Object.entries(wordStats).map(([word, stats]) => (
+          {sortedWords.map(([word, stats]) => (
             <li key={word} className="flex justify-between text-sm">
               <span>{word}</span>
               {stats.lastScore > 0 && (
