@@ -37,6 +37,17 @@ export default function Sidebar({
     }
   };
 
+  const calculateMsPerChar = (wpm: number): number => {
+    const totalTimeInMilliseconds = 60000;
+    const avgCharsPerWord = 5;
+    const totalCharsPerMinute = wpm * avgCharsPerWord;
+    return totalTimeInMilliseconds / totalCharsPerMinute;
+  };
+
+  const isGraduated = (score: number) => {
+    return score > 0 && score < calculateMsPerChar(wpmTarget);
+  };
+
   const sortedWords = Object.entries(wordStats)
     .sort(([, a], [, b]) => {
       // Put words with no score at the bottom
@@ -93,9 +104,11 @@ export default function Sidebar({
           {sortedWords.map(([word, stats], index) => (
             <li key={`${word}-${index}`}>
               <div className="flex justify-between text-sm">
-                <span>{word}</span>
+                <span className={isGraduated(stats.lastScore) ? 'text-green-500' : ''}>
+                  {word}
+                </span>
                 {stats.lastScore > 0 && (
-                  <span className="text-[#e2b714]">
+                  <span className={`${isGraduated(stats.lastScore) ? 'text-green-500' : 'text-[#e2b714]'}`}>
                     {Math.round(stats.lastScore)}
                   </span>
                 )}
