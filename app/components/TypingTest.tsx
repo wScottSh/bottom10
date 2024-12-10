@@ -106,37 +106,10 @@ export default function TypingTest() {
       setTypedWordStartTime(Date.now());
     }
 
-    // If there's an existing error and trying to add more characters, keep the current input
-    if (hasError && value.length > currentInput.length) {
-      return;
-    }
-
-    // Check for new error only if there isn't an existing error
-    if (!hasError && !currentWord.startsWith(value)) {
-      setHasError(true);
-      setIsWordErrored(true);
-      // Keep the input at the error position
-      setCurrentInput(value.slice(0, currentCharIndex));
-      return;
-    }
-
-    // Allow input changes only if:
-    // 1. No error exists, or
-    // 2. Backspacing (value.length < currentInput.length)
-    if (!hasError || value.length < currentInput.length) {
-      setCurrentInput(value);
-      setCurrentCharIndex(value.length);
-    }
-
-    // Reset error state if backspaced to start
-    if (value.length === 0) {
-      setHasError(false);
-      setIsWordErrored(false);
-    }
-
-    // Handle word completion
+    // Handle word completion with space
     if (value.endsWith(' ')) {
-      if (value.trim() === currentWord) {
+      const typedWord = value.trim();
+      if (typedWord === currentWord) {
         setTypedWordsData([
           ...typedWordsData,
           {
@@ -158,9 +131,28 @@ export default function TypingTest() {
           endTest();
         }
       }
+      return;
     }
 
-    // Reset error state if we've backspaced to the start
+    // If there's an existing error and trying to add more characters, keep the current input
+    if (hasError && value.length > currentInput.length) {
+      return;
+    }
+
+    // Check for new error only if there isn't an existing error
+    if (!hasError && !currentWord.startsWith(value)) {
+      setHasError(true);
+      setIsWordErrored(true);
+      // Keep the input at the error position
+      setCurrentInput(value.slice(0, currentCharIndex));
+      return;
+    }
+
+    // Allow input changes
+    setCurrentInput(value);
+    setCurrentCharIndex(value.length);
+
+    // Reset error state if backspaced to start
     if (value.length === 0) {
       setHasError(false);
       setIsWordErrored(false);
