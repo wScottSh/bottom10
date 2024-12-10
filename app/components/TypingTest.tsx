@@ -122,9 +122,10 @@ export default function TypingTest() {
   };
 
   const generateWordSet = (count: number) => {
-    // For first test, use random selection from full word list
+    // For first test, use first N words from word list
     if (!typedWordsData.length) {
-      return shuffleArray(wordList).slice(0, count);
+      const initialWords = wordList.slice(0, count);
+      return shuffleArray(initialWords);
     }
 
     // For subsequent tests, use frequency-based repetition of bottom words
