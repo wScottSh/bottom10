@@ -56,9 +56,8 @@ export default function TypingTest() {
   }, [testEnded]); // Only re-add listener if testEnded changes
 
   const startNewTest = () => {
-    // Generate words from current allWords state
+    // Prepare the word set based on current allWords
     const newWords = generateWordSet(wordCount);
-    // Only proceed if we have valid words
     if (newWords.length > 0) {
       setWords(newWords);
       setCurrentWordIndex(0);
@@ -69,6 +68,8 @@ export default function TypingTest() {
       setStartTime(Date.now());
       setTypedWordStartTime(Date.now());
       setTestStarted(false);
+      setHasError(false);
+      setIsWordErrored(false);
       inputRef.current?.focus();
     }
   };
@@ -162,7 +163,8 @@ export default function TypingTest() {
   const endTest = () => {
     setTestEnded(true);
     savePerformanceData();
-    prepareNextTest();
+    // Remove the automatic call to prepareNextTest
+    // Let the user explicitly start the next test
   };
 
   const savePerformanceData = () => {
@@ -197,6 +199,7 @@ export default function TypingTest() {
     // If no stored data, use the default word list
     if (Object.keys(storedData).length === 0) {
       setAllWords(wordList);
+      startNewTest(); // Ensure we start a new test with the default word list
       return;
     }
 
@@ -214,8 +217,18 @@ export default function TypingTest() {
     // Get the 10 slowest words
     const bottomWords = wordAverages.slice(0, 10).map((item) => item.word);
     
-    // Set allWords to either bottom words or full word list
+    // Set allWords and immediately start new test to ensure synchronization
     setAllWords(bottomWords.length > 0 ? bottomWords : wordList);
+    const newWords = generateWordSet(wordCount);
+    setWords(newWords);
+    setCurrentWordIndex(0);
+    setCorrectWords(0);
+    setCurrentInput('');
+    setTypedWordsData([]);
+    setTestEnded(false);
+    setStartTime(Date.now());
+    setTypedWordStartTime(Date.now());
+    setTestStarted(false);
   };
 
   const getWordStats = (): WordPerformance[] => {
