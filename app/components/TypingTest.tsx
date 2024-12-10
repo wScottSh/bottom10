@@ -106,57 +106,46 @@ export default function TypingTest() {
       setTypedWordStartTime(Date.now());
     }
 
-    // Only allow typing if:
-    // 1. No error, or
-    // 2. Backspacing (value length decreasing), or
-    // 3. Previously errored but now starting fresh
-    if (hasError && value.length >= currentInput.length && value.length !== 0) {
+    // If there's an existing error and trying to add more characters, keep the current input
+    if (hasError && value.length > currentInput.length) {
       return;
     }
 
-    setCurrentInput(value);
-    setCurrentCharIndex(value.length);
+    // Check for new error only if there isn't an existing error
+    if (!hasError && !currentWord.startsWith(value)) {
+      setHasError(true);
+      setIsWordErrored(true);
+      // Keep the input at the error position
+      setCurrentInput(value.slice(0, currentCharIndex));
+      return;
+    }
 
-    // Reset error state if we've backspaced to the start
+    // Allow input changes only if:
+    // 1. No error exists, or
+    // 2. Backspacing (value.length < currentInput.length)
+    if (!hasError || value.length < currentInput.length) {
+      setCurrentInput(value);
+      setCurrentCharIndex(value.length);
+    }
+
+    // Reset error state if backspaced to start
     if (value.length === 0) {
       setHasError(false);
       setIsWordErrored(false);
     }
-    // Check for errors in current word
-    else if (!currentWord.startsWith(value)) {
-      setHasError(true);
-      setIsWordErrored(true);
-    }
 
-    // Check if this is the last word and it's complete
-    const isLastWord = currentWordIndex === words.length - 1;
-    const isWordComplete = value === currentWord;
-    
-    if (isLastWord && isWordComplete) {
-      setTypedWordsData([
-        ...typedWordsData,
-        { 
-          word: currentWord, 
-          time: Date.now() - typedWordStartTime, 
-          errors: isWordErrored ? 1 : 0 
-        },
-      ]);
-      endTest();
-      return;
-    }
-
-    // Handle normal word completion with space
+    // Handle word completion
     if (value.endsWith(' ')) {
       if (value.trim() === currentWord) {
         setTypedWordsData([
           ...typedWordsData,
-          { 
-            word: currentWord, 
-            time: Date.now() - typedWordStartTime, 
-            errors: isWordErrored ? 1 : 0 
+          {
+            word: currentWord,
+            time: Date.now() - typedWordStartTime,
+            errors: isWordErrored ? 1 : 0
           },
         ]);
-        
+
         setCorrectWords(correctWords + 1);
         setCurrentWordIndex(currentWordIndex + 1);
         setCurrentInput('');
@@ -165,11 +154,16 @@ export default function TypingTest() {
         setHasError(false);
         setIsWordErrored(false);
 
-        // Only end test after successfully completing the last word
         if (currentWordIndex + 1 === words.length) {
           endTest();
         }
       }
+    }
+
+    // Reset error state if we've backspaced to the start
+    if (value.length === 0) {
+      setHasError(false);
+      setIsWordErrored(false);
     }
   };
 
