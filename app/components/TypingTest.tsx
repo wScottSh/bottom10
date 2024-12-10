@@ -70,6 +70,8 @@ export default function TypingTest() {
   };
 
   const generateWordSet = (count: number) => {
+    // Ensure we never return an empty array
+    if (!allWords.length) return wordList.slice(0, count);
     return shuffleArray(allWords).slice(0, count);
   };
 
@@ -177,6 +179,12 @@ export default function TypingTest() {
       localStorage.getItem('performanceData') || '{}'
     );
 
+    // If no stored data, use the default word list
+    if (Object.keys(storedData).length === 0) {
+      setAllWords(wordList);
+      return;
+    }
+
     const wordAverages = Object.keys(storedData).map((word) => ({
       word,
       // Use raw timing data with attempt weighting
@@ -190,7 +198,8 @@ export default function TypingTest() {
     wordAverages.sort((a, b) => b.averageTime - a.averageTime);
 
     const bottomWords = wordAverages.slice(0, 10).map((item) => item.word);
-
+    
+    // Ensure we never set an empty array
     setAllWords(bottomWords.length > 0 ? bottomWords : wordList);
   };
 
