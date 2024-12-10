@@ -15,7 +15,6 @@ export default function TypingTest() {
   const [currentInput, setCurrentInput] = useState('');
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [correctWords, setCorrectWords] = useState<number>(0);
-  const [incorrectWords, setIncorrectWords] = useState<number>(0);
   const [startTime, setStartTime] = useState<number>(Date.now());
   const [timeLeft, setTimeLeft] = useState<number>(60); // default to 60 seconds
   const [testEnded, setTestEnded] = useState<boolean>(false);
@@ -50,7 +49,6 @@ export default function TypingTest() {
     setWords(newWords);
     setCurrentWordIndex(0);
     setCorrectWords(0);
-    setIncorrectWords(0);
     setCurrentInput('');
     setTypedWordsData([]);
     setTimeLeft(testDuration);
@@ -237,14 +235,13 @@ export default function TypingTest() {
       ) : (
         <div className="text-center">
           <h2 className="text-2xl mb-4">Test Completed!</h2>
-          <p>Correct Words: {correctWords}</p>
-          <p>Incorrect Words: {incorrectWords}</p>
+          <p>Words Completed: {correctWords}</p>
           <div className="mt-4">
             <h3 className="text-xl mb-2">Your Performance:</h3>
             <ul>
               {typedWordsData.map(({ word, time, errors }, index) => (
                 <li key={index}>
-                  {word}: {time}ms, Errors: {errors}
+                  {word}: {Math.round(time)}ms {errors > 0 ? '(with errors)' : ''}
                 </li>
               ))}
             </ul>
