@@ -74,16 +74,77 @@ export default function TypingTest() {
     }
   };
 
-  const generateWordSet = (count: number) => {
-    // If we have fewer words than needed, repeat them
-    if (allWords.length < count) {
-      const repeatedWords = [];
-      while (repeatedWords.length < count) {
-        repeatedWords.push(...allWords);
+  const generateFrequencyDistribution = (wordCount: number, bottomWords: string[]) => {
+    // Ensure at least 25% of words are the worst performer
+    const worstWordCount = Math.max(Math.floor(wordCount * 0.25), 1);
+    const remainingCount = wordCount - worstWordCount;
+    
+    // Calculate decreasing frequencies for remaining words
+    const frequencies: Record<string, number> = {};
+    let remainingSlots = remainingCount;
+    
+    bottomWords.forEach((word, index) => {
+      if (index === 0) {
+        // Worst word gets 25%
+        frequencies[word] = worstWordCount;
+      } else if (index === bottomWords.length - 1) {
+        // Last word gets minimum 2 occurrences
+        frequencies[word] = 2;
+      } else {
+        // Calculate decreasing frequency for middle words
+        const portion = Math.floor((remainingSlots - 2) * (bottomWords.length - index) / 
+          (bottomWords.length * (bottomWords.length - 1) / 2));
+        frequencies[word] = Math.max(portion, 2);
+        remainingSlots -= portion;
       }
-      return shuffleArray(repeatedWords).slice(0, count);
+    });
+
+    return frequencies;
+  };
+
+  const generateWordSet = (count: number) => {
+    // For first test, use random selection from full word list
+    if (!typedWordsData.length) {
+      return shuffleArray(wordList).slice(0, count);
     }
-    return shuffleArray(allWords).slice(0, count);
+
+    // For subsequent tests, use frequency-based repetition of bottom words
+    const bottomWords = getBottomWords();
+    if (!bottomWords.length) return shuffleArray(wordList).slice(0, count);
+
+    const frequencies = generateFrequencyDistribution(count, bottomWords);
+    const repeatedWords: string[] = [];
+    
+    Object.entries(frequencies).forEach(([word, freq]) => {
+      for (let i = 0; i < freq; i++) {
+        repeatedWords.push(word);
+      }
+    });
+
+    return shuffleArray(repeatedWords);
+  };
+
+  const getBottomWords = () => {
+    const wordStats = Object.entries(aggregateWordStats()).sort(
+      ([, a], [, b]) => b.normalizedScore - a.normalizedScore
+    );
+    return wordStats.slice(0, 10).map(([word]) => word);
+  };
+
+  const aggregateWordStats = () => {
+    const stats: Record<string, { totalTime: number, totalChars: number, attempts: number, normalizedScore: number }> = {};
+    
+    typedWordsData.forEach(({ word, time }) => {
+      if (!stats[word]) {
+        stats[word] = { totalTime: 0, totalChars: 0, attempts: 0, normalizedScore: 0 };
+      }
+      stats[word].totalTime += time;
+      stats[word].totalChars += word.length;
+      stats[word].attempts += 1;
+      stats[word].normalizedScore = stats[word].totalTime / stats[word].totalChars / stats[word].attempts;
+    });
+
+    return stats;
   };
 
   const shuffleArray = (array: string[]) => {
@@ -182,13 +243,17 @@ export default function TypingTest() {
       localStorage.getItem('performanceData') || '{}'
     );
 
-    typedWordsData.forEach(({ word, time, errors }) => {
+    const currentStats = aggregateWordStats();
+    Object.entries(currentStats).forEach(([word, stats]) => {
       if (storedData[word]) {
-        storedData[word].totalTime += time;
-        storedData[word].attempts += 1;
-        storedData[word].errors += errors;
+        storedData[word].totalTime += stats.totalTime;
+        storedData[word].attempts += stats.attempts;
       } else {
-        storedData[word] = { totalTime: time, attempts: 1, errors };
+        storedData[word] = {
+          totalTime: stats.totalTime,
+          attempts: stats.attempts,
+          errors: 0 // Keep track of errors separately
+        };
       }
     });
 
