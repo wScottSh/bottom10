@@ -29,6 +29,7 @@ export default function TypingTest() {
   const wordsContainerRef = useRef<HTMLDivElement>(null);
   const [currentCharIndex, setCurrentCharIndex] = useState(0);
   const [hasError, setHasError] = useState(false);
+  const [isWordErrored, setIsWordErrored] = useState(false);  // Track if word has had an error
 
   useEffect(() => {
     startNewTest();
@@ -73,25 +74,31 @@ export default function TypingTest() {
     const value = e.target.value;
     const currentWord = words[currentWordIndex];
 
-    // Guard against undefined currentWord
     if (!currentWord) {
       endTest();
       return;
     }
-    
-    // Only allow backspacing when there's an error
-    if (hasError && value.length >= currentInput.length) {
+
+    // Only allow typing if:
+    // 1. No error, or
+    // 2. Backspacing (value length decreasing), or
+    // 3. Previously errored but now starting fresh
+    if (hasError && value.length >= currentInput.length && value.length !== 0) {
       return;
     }
 
     setCurrentInput(value);
     setCurrentCharIndex(value.length);
 
-    // Check for errors in current word
-    if (value.length > 0 && !currentWord.startsWith(value)) {
-      setHasError(true);
-    } else {
+    // Reset error state if we've backspaced to the start
+    if (value.length === 0) {
       setHasError(false);
+      setIsWordErrored(false);
+    }
+    // Check for errors in current word
+    else if (!currentWord.startsWith(value)) {
+      setHasError(true);
+      setIsWordErrored(true);
     }
 
     if (value.endsWith(' ')) {
@@ -101,7 +108,7 @@ export default function TypingTest() {
           { 
             word: currentWord, 
             time: Date.now() - typedWordStartTime, 
-            errors: hasError ? 1 : 0 
+            errors: isWordErrored ? 1 : 0 
           },
         ]);
         
@@ -111,6 +118,7 @@ export default function TypingTest() {
         setCurrentCharIndex(0);
         setTypedWordStartTime(Date.now());
         setHasError(false);
+        setIsWordErrored(false);
       }
     }
   };
@@ -197,7 +205,7 @@ export default function TypingTest() {
                 key={wordIndex}
                 className={`word ${
                   wordIndex === currentWordIndex 
-                    ? `current ${hasError ? 'text-[#ca4754]' : ''}` 
+                    ? `current ${isWordErrored ? 'text-[#ca4754]' : ''}` 
                     : ''
                 } ${wordIndex < currentWordIndex ? 'completed' : ''}`}
               >
@@ -208,8 +216,7 @@ export default function TypingTest() {
                   >
                     {char}
                     {wordIndex === currentWordIndex && 
-                     charIndex === currentCharIndex && 
-                     !hasError && (
+                     charIndex === currentCharIndex && (
                       <span className="absolute left-0 bottom-[0.15em] w-full h-[2px] bg-[#e2b714] transition-all duration-[50ms] ease-out" />
                     )}
                   </span>
