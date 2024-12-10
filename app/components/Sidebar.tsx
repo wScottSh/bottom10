@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -36,9 +35,9 @@ export default function Sidebar({
           {Object.entries(wordStats).map(([word, stats]) => (
             <li key={word} className="flex justify-between text-sm">
               <span>{word}</span>
-              {stats.lastScore && (
+              {stats.lastScore > 0 && (
                 <span className="text-[#e2b714]">
-                  {Math.round(stats.lastScore)}ms/char
+                  {Math.round(stats.lastScore)}
                 </span>
               )}
             </li>
