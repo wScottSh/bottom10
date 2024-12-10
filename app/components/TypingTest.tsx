@@ -10,6 +10,14 @@ interface WordData {
 }
 
 export default function TypingTest() {
+  // Add interface for word performance data
+  interface WordPerformance {
+    word: string;
+    time: number;
+    normalizedScore: number;
+    errors: number;
+  }
+
   const [allWords, setAllWords] = useState<string[]>(wordList);
   const [words, setWords] = useState<string[]>([]);
   const [currentInput, setCurrentInput] = useState('');
@@ -165,6 +173,12 @@ export default function TypingTest() {
     localStorage.setItem('performanceData', JSON.stringify(storedData));
   };
 
+  const normalizeWordTime = (time: number, attempts: number): number => {
+    // Simple exponential moving average with more weight on recent attempts
+    const alpha = 0.8; // Weight for most recent attempts
+    return time * (1 - Math.pow(1 - alpha, attempts));
+  };
+
   const prepareNextTest = () => {
     const storedData: Record<string, WordData> = JSON.parse(
       localStorage.getItem('performanceData') || '{}'
@@ -172,7 +186,11 @@ export default function TypingTest() {
 
     const wordAverages = Object.keys(storedData).map((word) => ({
       word,
-      averageTime: storedData[word].totalTime / storedData[word].attempts,
+      // Use raw timing data with attempt weighting
+      averageTime: normalizeWordTime(
+        storedData[word].totalTime / storedData[word].attempts,
+        storedData[word].attempts
+      ),
       errorRate: (storedData[word].errors / storedData[word].attempts) * 100,
     }));
 
@@ -181,6 +199,17 @@ export default function TypingTest() {
     const bottomWords = wordAverages.slice(0, 10).map((item) => item.word);
 
     setAllWords(bottomWords.length > 0 ? bottomWords : wordList);
+  };
+
+  const getWordStats = (): WordPerformance[] => {
+    return typedWordsData
+      .map(({ word, time, errors }) => ({
+        word,
+        time,
+        normalizedScore: normalizeWordTime(time, 1), // Single attempt for current test
+        errors
+      }))
+      .sort((a, b) => b.normalizedScore - a.normalizedScore); // Sort from slowest to fastest
   };
 
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -260,10 +289,11 @@ export default function TypingTest() {
           <p>Words Completed: {correctWords}</p>
           <div className="mt-4">
             <h3 className="text-xl mb-2">Your Performance:</h3>
-            <ul>
-              {typedWordsData.map(({ word, time, errors }, index) => (
-                <li key={index}>
-                  {word}: {Math.round(time)}ms {errors > 0 ? '(with errors)' : ''}
+            <ul className="space-y-1">
+              {getWordStats().map(({ word, time, normalizedScore, errors }, index) => (
+                <li key={index} className="font-mono">
+                  {word}: {Math.round(normalizedScore)} (raw: {Math.round(time)}ms)
+                  {errors > 0 ? ' (with errors)' : ''}
                 </li>
               ))}
             </ul>
