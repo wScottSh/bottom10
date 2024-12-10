@@ -3,6 +3,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 
+interface WordData {
+  totalTime: number;
+  attempts: number;
+  errors: number;
+}
+
 export default function TypingTest() {
   const [allWords, setAllWords] = useState<string[]>(wordList);
   const [words, setWords] = useState<string[]>([]);
@@ -10,12 +16,15 @@ export default function TypingTest() {
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [correctWords, setCorrectWords] = useState<number>(0);
   const [incorrectWords, setIncorrectWords] = useState<number>(0);
-  const [startTime, setStartTime] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(60);
+  const [startTime, setStartTime] = useState<number>(Date.now());
+  const [timeLeft, setTimeLeft] = useState<number>(60); // default to 60 seconds
   const [testEnded, setTestEnded] = useState<boolean>(false);
+  const [typedWordStartTime, setTypedWordStartTime] = useState<number>(Date.now());
   const [typedWordsData, setTypedWordsData] = useState<
-    { word: string; time: number }[]
+    { word: string; time: number; errors: number }[]
   >([]);
+  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [testDuration, setTestDuration] = useState<number>(60);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -24,13 +33,13 @@ export default function TypingTest() {
   }, []);
 
   useEffect(() => {
-    if (timeLeft > 0 && startTime !== null) {
+    if (timeLeft > 0 && !testEnded) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
       return () => clearTimeout(timer);
     } else if (timeLeft === 0 && !testEnded) {
       endTest();
     }
-  }, [timeLeft, testEnded, startTime]);
+  }, [timeLeft, testEnded]);
 
   const startNewTest = () => {
     const newWords = generateWordSet(50);
@@ -40,9 +49,10 @@ export default function TypingTest() {
     setIncorrectWords(0);
     setCurrentInput('');
     setTypedWordsData([]);
-    setTimeLeft(60);
+    setTimeLeft(testDuration);
     setTestEnded(false);
     setStartTime(Date.now());
+    setTypedWordStartTime(Date.now());
     inputRef.current?.focus();
   };
 
@@ -51,7 +61,7 @@ export default function TypingTest() {
   };
 
   const shuffleArray = (array: string[]) => {
-    return array.sort(() => Math.random() - 0.5);
+    return [...array].sort(() => Math.random() - 0.5);
   };
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,11 +72,12 @@ export default function TypingTest() {
     if (value.endsWith(' ')) {
       const typedWord = value.trim();
       const currentWord = words[currentWordIndex];
-      const timeTaken = Date.now() - (startTime || Date.now());
+      const timeTaken = Date.now() - typedWordStartTime;
+      const errors = typedWord !== currentWord ? 1 : 0;
 
       setTypedWordsData([
         ...typedWordsData,
-        { word: currentWord, time: timeTaken },
+        { word: currentWord, time: timeTaken, errors },
       ]);
 
       if (typedWord === currentWord) {
@@ -77,7 +88,7 @@ export default function TypingTest() {
 
       setCurrentWordIndex(currentWordIndex + 1);
       setCurrentInput('');
-      setStartTime(Date.now());
+      setTypedWordStartTime(Date.now());
     }
   };
 
@@ -88,16 +99,17 @@ export default function TypingTest() {
   };
 
   const savePerformanceData = () => {
-    const storedData = JSON.parse(
+    const storedData: Record<string, WordData> = JSON.parse(
       localStorage.getItem('performanceData') || '{}'
     );
 
-    typedWordsData.forEach(({ word, time }) => {
+    typedWordsData.forEach(({ word, time, errors }) => {
       if (storedData[word]) {
         storedData[word].totalTime += time;
-        storedData[word].count += 1;
+        storedData[word].attempts += 1;
+        storedData[word].errors += errors;
       } else {
-        storedData[word] = { totalTime: time, count: 1 };
+        storedData[word] = { totalTime: time, attempts: 1, errors };
       }
     });
 
@@ -105,13 +117,14 @@ export default function TypingTest() {
   };
 
   const prepareNextTest = () => {
-    const storedData = JSON.parse(
+    const storedData: Record<string, WordData> = JSON.parse(
       localStorage.getItem('performanceData') || '{}'
     );
 
     const wordAverages = Object.keys(storedData).map((word) => ({
       word,
-      averageTime: storedData[word].totalTime / storedData[word].count,
+      averageTime: storedData[word].totalTime / storedData[word].attempts,
+      errorRate: (storedData[word].errors / storedData[word].attempts) * 100,
     }));
 
     wordAverages.sort((a, b) => b.averageTime - a.averageTime);
@@ -121,14 +134,40 @@ export default function TypingTest() {
     setAllWords(bottomWords.length > 0 ? bottomWords : wordList);
   };
 
+  const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTestDuration(parseInt(e.target.value));
+  };
+
+  const toggleSettings = () => {
+    setShowSettings(!showSettings);
+  };
+
   return (
     <div
-      className="flex flex-col items-center gap-8"
+      className="flex flex-col items-center gap-4"
       onClick={() => inputRef.current?.focus()}
     >
       {!testEnded ? (
         <>
-          <div className="text-xl">Time Left: {timeLeft}s</div>
+          <div className="flex items-center justify-between w-full max-w-[800px]">
+            <div className="text-xl">Time Left: {timeLeft}s</div>
+            <button onClick={toggleSettings}>
+              {showSettings ? 'Hide Settings' : 'Show Settings'}
+            </button>
+          </div>
+          {showSettings && (
+            <div className="mb-4">
+              <label>
+                Test Duration (seconds):
+                <input
+                  type="number"
+                  value={testDuration}
+                  onChange={handleDurationChange}
+                  className="ml-2 w-20 p-1 bg-gray-700 text-white rounded"
+                />
+              </label>
+            </div>
+          )}
           <div className="text-2xl min-h-[120px] max-w-[800px] leading-relaxed">
             {words.map((word, index) => (
               <span
@@ -155,8 +194,18 @@ export default function TypingTest() {
           <h2 className="text-2xl mb-4">Test Completed!</h2>
           <p>Correct Words: {correctWords}</p>
           <p>Incorrect Words: {incorrectWords}</p>
+          <div className="mt-4">
+            <h3 className="text-xl mb-2">Your Performance:</h3>
+            <ul>
+              {typedWordsData.map(({ word, time, errors }, index) => (
+                <li key={index}>
+                  {word}: {time}ms, Errors: {errors}
+                </li>
+              ))}
+            </ul>
+          </div>
           <button
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+            className="mt-4"
             onClick={startNewTest}
           >
             Start Next Test

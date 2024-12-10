@@ -65,3 +65,11 @@ button {
 .text-center {
   text-align: center;
 }
+
+input[type="number"] {
+  @apply bg-gray-800 text-white rounded px-2 py-1;
+}
+
+label {
+  @apply text-white;
+}

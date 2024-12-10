@@ -1,4 +1,3 @@
-
 const wordList = [
   'the',
   'be',
@@ -10,7 +9,7 @@ const wordList = [
   'that',
   'have',
   'I',
-  // ...add the rest of the top 1000 English words...
+  // ...include the rest of the top 1000 English words...
 ];
 
 export default wordList;
