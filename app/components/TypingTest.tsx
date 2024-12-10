@@ -286,7 +286,6 @@ export default function TypingTest() {
       ) : (
         <div className="text-center">
           <h2 className="text-2xl mb-4">Test Completed!</h2>
-          <p>Words Completed: {correctWords}</p>
           <div className="mt-4">
             <h3 className="text-xl mb-2">Your Performance:</h3>
             <ul className="space-y-1">
