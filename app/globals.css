@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,6 +7,13 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --bg-primary: #232323;
+  --bg-secondary: #2c2c2c;
+  --text-primary: #e2e2e2;
+  --text-secondary: #646464;
+  --accent: #e2b714;
+  --error: #ca4754;
+  --font-main: 'Roboto Mono', monospace;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -14,8 +23,37 @@
   }
 }
 
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.word {
+  margin-right: 0.6rem;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.word.current {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.word.completed {
+  color: var(--accent);
 }

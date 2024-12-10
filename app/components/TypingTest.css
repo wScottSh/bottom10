@@ -1,0 +1,57 @@
+.typing-test {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  padding: 2rem;
+}
+
+.words {
+  max-width: 800px;
+  min-height: 120px;
+  line-height: 1.5;
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+}
+
+.word {
+  margin-right: 0.6rem;
+}
+
+.word.current {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.word.completed {
+  color: var(--accent);
+}
+
+.input {
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  caret-color: var(--accent);
+}
+
+.typing-test:focus-within {
+  position: relative;
+}
+
+.typing-test:focus-within::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 1.5rem;
+  background-color: var(--accent);
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
