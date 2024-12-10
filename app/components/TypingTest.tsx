@@ -24,34 +24,24 @@ export default function TypingTest() {
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [correctWords, setCorrectWords] = useState<number>(0);
   const [startTime, setStartTime] = useState<number>(Date.now());
-  const [timeLeft, setTimeLeft] = useState<number>(60); // default to 60 seconds
   const [testEnded, setTestEnded] = useState<boolean>(false);
   const [typedWordStartTime, setTypedWordStartTime] = useState<number>(Date.now());
   const [typedWordsData, setTypedWordsData] = useState<
     { word: string; time: number; errors: number }[]
   >([]);
   const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [testDuration, setTestDuration] = useState<number>(60);
   const inputRef = useRef<HTMLInputElement>(null);
   const wordsContainerRef = useRef<HTMLDivElement>(null);
   const [currentCharIndex, setCurrentCharIndex] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [isWordErrored, setIsWordErrored] = useState(false);  // Track if word has had an error
   const [testStarted, setTestStarted] = useState(false);
+  const [wordCount, setWordCount] = useState<number>(50);
 
   useEffect(() => {
     startNewTest();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (timeLeft > 0 && testStarted && !testEnded) {
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-      return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && !testEnded) {
-      endTest();
-    }
-  }, [timeLeft, testEnded, testStarted]);
 
   // Add new useEffect for keyboard handler
   useEffect(() => {
@@ -66,13 +56,12 @@ export default function TypingTest() {
   }, [testEnded]); // Only re-add listener if testEnded changes
 
   const startNewTest = () => {
-    const newWords = generateWordSet(50);
+    const newWords = generateWordSet(wordCount); // Use wordCount instead of hardcoded value
     setWords(newWords);
     setCurrentWordIndex(0);
     setCorrectWords(0);
     setCurrentInput('');
     setTypedWordsData([]);
-    setTimeLeft(testDuration);
     setTestEnded(false);
     setStartTime(Date.now());
     setTypedWordStartTime(Date.now());
@@ -147,6 +136,10 @@ export default function TypingTest() {
         setIsWordErrored(false);
       }
     }
+
+    if (currentWordIndex + 1 === words.length) {
+      endTest();
+    }
   };
 
   const endTest = () => {
@@ -212,12 +205,13 @@ export default function TypingTest() {
       .sort((a, b) => b.normalizedScore - a.normalizedScore); // Sort from slowest to fastest
   };
 
-  const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setTestDuration(parseInt(e.target.value));
-  };
-
   const toggleSettings = () => {
     setShowSettings(!showSettings);
+  };
+
+  const handleWordCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const count = parseInt(e.target.value);
+    setWordCount(Math.max(10, Math.min(count, 200))); // Limit between 10 and 200 words
   };
 
   return (
@@ -226,20 +220,22 @@ export default function TypingTest() {
         <>
           <div className="flex items-center justify-between w-full max-w-[800px]">
             <div className="text-xl">
-              {testStarted ? `Time Left: ${timeLeft}s` : 'Type to start'}
+              {testStarted ? 'Typing...' : 'Type to start'}
             </div>
             <button onClick={toggleSettings}>
               {showSettings ? 'Hide Settings' : 'Show Settings'}
             </button>
           </div>
           {showSettings && (
-            <div className="mb-4">
+            <div className="mb-4 flex flex-col gap-2">
               <label>
-                Test Duration (seconds):
+                Words per test:
                 <input
                   type="number"
-                  value={testDuration}
-                  onChange={handleDurationChange}
+                  value={wordCount}
+                  onChange={handleWordCountChange}
+                  min="10"
+                  max="200"
                   className="ml-2 w-20 p-1 bg-gray-700 text-white rounded"
                 />
               </label>
