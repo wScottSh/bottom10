@@ -50,12 +50,20 @@ export default function Sidebar({
 
   const sortedWords = Object.entries(wordStats)
     .sort(([, a], [, b]) => {
-      // Put words with no score at the bottom
-      if (!a.lastScore && !b.lastScore) return 0;
-      if (!a.lastScore) return 1;
-      if (!b.lastScore) return -1;
-      // Sort by score, highest (worst) first
-      return b.lastScore - a.lastScore;
+      const aScore = a.lastScore;
+      const bScore = b.lastScore;
+      const aGraduated = isGraduated(aScore);
+      const bGraduated = isGraduated(bScore);
+
+      // First handle graduated vs non-graduated
+      if (aGraduated !== bGraduated) return aGraduated ? 1 : -1;
+
+      // Then handle unscored (they go between non-graduated and graduated)
+      if (!aScore) return 1;
+      if (!bScore) return -1;
+
+      // Within each group, sort by score (higher = worse)
+      return bScore - aScore;
     });
 
   return (

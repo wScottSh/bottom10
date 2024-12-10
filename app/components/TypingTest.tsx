@@ -123,9 +123,17 @@ export default function TypingTest() {
 
   const generateWordSet = (count: number) => {
     // Get all scored words from globalWordStats
+    const isGraduated = (score: number) => score > 0 && score < (60000 / (40 * 5)); // 40 wpm target
+    
     const scoredWords = Object.entries(globalWordStats)
       .filter(([, stats]) => stats.lastScore > 0)
-      .sort(([, statsA], [, statsB]) => statsB.lastScore - statsA.lastScore)
+      .sort(([, a], [, b]) => {
+        const aGraduated = isGraduated(a.lastScore);
+        const bGraduated = isGraduated(b.lastScore);
+        
+        if (aGraduated !== bGraduated) return aGraduated ? 1 : -1;
+        return b.lastScore - a.lastScore;
+      })
       .map(([word]) => word);
 
     if (scoredWords.length > 0) {
@@ -149,12 +157,19 @@ export default function TypingTest() {
   };
 
   const getBottomWords = () => {
-    const wordStats = Object.entries(globalWordStats)
+    const isGraduated = (score: number) => score > 0 && score < (60000 / (40 * 5));
+    
+    return Object.entries(globalWordStats)
       .filter(([, stats]) => stats.lastScore > 0)
-      .sort(([, a], [, b]) => b.lastScore - a.lastScore)
+      .sort(([, a], [, b]) => {
+        const aGraduated = isGraduated(a.lastScore);
+        const bGraduated = isGraduated(b.lastScore);
+        
+        if (aGraduated !== bGraduated) return aGraduated ? 1 : -1;
+        return bScore - aScore;
+      })
       .map(([word]) => word)
       .slice(0, 10);
-    return wordStats;
   };
 
   const aggregateWordStats = () => {
