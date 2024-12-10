@@ -195,10 +195,8 @@ export default function TypingTest() {
     localStorage.setItem('performanceData', JSON.stringify(storedData));
   };
 
-  const normalizeWordTime = (time: number, attempts: number): number => {
-    // Simple exponential moving average with more weight on recent attempts
-    const alpha = 0.8; // Weight for most recent attempts
-    return time * (1 - Math.pow(1 - alpha, attempts));
+  const normalizeWordTime = (time: number, wordLength: number): number => {
+    return time / wordLength; // Time per character
   };
 
   const prepareNextTest = () => {
@@ -206,28 +204,25 @@ export default function TypingTest() {
       localStorage.getItem('performanceData') || '{}'
     );
 
-    // If no stored data, use the default word list
     if (Object.keys(storedData).length === 0) {
       setAllWords(wordList);
-      startNewTest(); // Ensure we start a new test with the default word list
+      startNewTest();
       return;
     }
 
     const wordAverages = Object.keys(storedData).map((word) => ({
       word,
+      // Calculate average time per character
       averageTime: normalizeWordTime(
         storedData[word].totalTime / storedData[word].attempts,
-        storedData[word].attempts
+        word.length
       ),
       errorRate: (storedData[word].errors / storedData[word].attempts) * 100,
     }));
 
     wordAverages.sort((a, b) => b.averageTime - a.averageTime);
-
-    // Get the 10 slowest words
     const bottomWords = wordAverages.slice(0, 10).map((item) => item.word);
     
-    // Set allWords and immediately start new test to ensure synchronization
     setAllWords(bottomWords.length > 0 ? bottomWords : wordList);
     const newWords = generateWordSet(wordCount);
     setWords(newWords);
@@ -246,10 +241,10 @@ export default function TypingTest() {
       .map(({ word, time, errors }) => ({
         word,
         time,
-        normalizedScore: normalizeWordTime(time, 1), // Single attempt for current test
+        normalizedScore: normalizeWordTime(time, word.length),
         errors
       }))
-      .sort((a, b) => b.normalizedScore - a.normalizedScore); // Sort from slowest to fastest
+      .sort((a, b) => b.normalizedScore - a.normalizedScore);
   };
 
   const toggleSettings = () => {
