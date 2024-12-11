@@ -1,6 +1,6 @@
 # Bottom 10 Typing
 
-Typing improvement happens fastest when you focus on the words you type the slowest. Traditional typing tests and tutors cycle through large sets of words evenly, which can be inefficient. Bottom 10 Typing flips this around: after each test, it identifies your "worst performing" words — the slowest words in your personal word set — and drills them in the next session. Much like spaced repetition emphasizes the flashcards that give you the most trouble, or a Kanban board's limits highlight bottlenecks, Bottom 10 Typing makes inefficiencies unmistakably "loud," drawing your focus directly to them.
+Bottom 10 Typing is a web-based typing tutor that focuses on improving your typing speed by targeting the words you struggle with the most. Instead of practicing large, uniform sets of words, it automatically identifies your "worst performing" words — the slowest words in your personal word set — and drills them in the next session. This approach helps you rapidly gain muscle memory efficiency where you need it most, accelerating your improvement.
 
 ## Getting Started
 
@@ -48,9 +48,9 @@ Typing improvement happens fastest when you focus on the words you type the slow
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (```git checkout -b feature/amazing-feature```)
-3. Commit your changes (```git commit -m 'Add some amazing feature'```)
-4. Push to the branch (```git push origin feature/amazing-feature```)
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
 ## License
