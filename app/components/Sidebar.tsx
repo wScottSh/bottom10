@@ -1,24 +1,20 @@
 'use client';
 
 import { useState, KeyboardEvent } from 'react';
+import { getTopWordsForTest, calculateGraduationThreshold, WordStats, isGraduated } from '../utils/wordUtils';
 
-interface WordStats {
-  word: string;
-  time: number;
-  attempts: number;
-  lastScore: number;
-}
-
-export default function Sidebar({ 
-  isOpen, 
-  wordStats, 
-  toggleSidebar 
-}: { 
+interface SidebarProps {
   isOpen: boolean;
   wordStats: Record<string, WordStats>;
   toggleSidebar: () => void;
-}) {
-  const [wpmTarget, setWpmTarget] = useState<number>(40);
+  onWpmChange: (wpm: number) => void;
+}
+
+export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange }: SidebarProps) {
+  const [wpmTarget, setWpmTarget] = useState<number>(() => {
+    const saved = localStorage.getItem('wpmTarget');
+    return saved ? parseInt(saved) : 40;
+  });
   const [isEditingWpm, setIsEditingWpm] = useState(false);
   const [tempWpm, setTempWpm] = useState('');
 
@@ -26,6 +22,8 @@ export default function Sidebar({
     const newWpm = parseInt(tempWpm);
     if (newWpm > 0) {
       setWpmTarget(newWpm);
+      localStorage.setItem('wpmTarget', newWpm.toString());
+      onWpmChange(newWpm);
     }
     setIsEditingWpm(false);
     setTempWpm('');
@@ -37,33 +35,23 @@ export default function Sidebar({
     }
   };
 
-  const calculateMsPerChar = (wpm: number): number => {
-    const totalTimeInMilliseconds = 60000;
-    const avgCharsPerWord = 5;
-    const totalCharsPerMinute = wpm * avgCharsPerWord;
-    return totalTimeInMilliseconds / totalCharsPerMinute;
-  };
-
-  const isGraduated = (score: number) => {
-    return score > 0 && score < calculateMsPerChar(wpmTarget);
-  };
-
   const sortedWords = Object.entries(wordStats)
-    .sort(([, a], [, b]) => {
-      const aScore = a.lastScore;
-      const bScore = b.lastScore;
-      const aGraduated = isGraduated(aScore);
-      const bGraduated = isGraduated(bScore);
-
-      // First handle graduated vs non-graduated
-      if (aGraduated !== bGraduated) return aGraduated ? 1 : -1;
-
-      // Then handle unscored (they go between non-graduated and graduated)
-      if (!aScore) return 1;
-      if (!bScore) return -1;
-
-      // Within each group, sort by score (higher = worse)
-      return bScore - aScore;
+    .map(([word, stats]) => ({
+      word,
+      stats,
+      isGraduated: isGraduated(stats.lastScore, wpmTarget)
+    }))
+    .sort((a, b) => {
+      // First separate graduated vs non-graduated
+      if (a.isGraduated !== b.isGraduated) return a.isGraduated ? 1 : -1;
+      
+      // Then handle unscored vs scored
+      if (!a.stats.lastScore && b.stats.lastScore) return 1;
+      if (a.stats.lastScore && !b.stats.lastScore) return -1;
+      if (!a.stats.lastScore && !b.stats.lastScore) return 0;
+      
+      // Finally sort by score (higher = worse performance)
+      return b.stats.lastScore - a.stats.lastScore;
     });
 
   return (
@@ -109,14 +97,14 @@ export default function Sidebar({
         </div>
 
         <ul className="space-y-1">
-          {sortedWords.map(([word, stats], index) => (
+          {sortedWords.map(({ word, stats, isGraduated }, index) => (
             <li key={`${word}-${index}`}>
               <div className="flex justify-between text-sm">
-                <span className={isGraduated(stats.lastScore) ? 'text-green-500' : ''}>
+                <span className={isGraduated ? 'text-green-500' : ''}>
                   {word}
                 </span>
                 {stats.lastScore > 0 && (
-                  <span className={`${isGraduated(stats.lastScore) ? 'text-green-500' : 'text-[#e2b714]'}`}>
+                  <span className={`${isGraduated ? 'text-green-500' : 'text-[#e2b714]'}`}>
                     {Math.round(stats.lastScore)}
                   </span>
                 )}

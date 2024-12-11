@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
+import { WordStats, getTopWordsForTest, calculateGraduationThreshold } from '../utils/wordUtils';
 
 interface WordData {
   totalTime: number;
@@ -74,9 +75,29 @@ export default function TypingTest() {
     }
   }, []);
 
+  // Remove these functions as they're now in wordUtils:
+  // - calculateGraduationThreshold
+  // - getTopWordsForTest
+
+  const generateWordSet = (count: number, wpmTarget: number) => {
+    const selectedWords = getTopWordsForTest(globalWordStats, wpmTarget);
+    if (selectedWords.length === 0) return shuffleArray(wordList.slice(0, count));
+    
+    const frequencies = generateFrequencyDistribution(count, selectedWords);
+    const repeatedWords: string[] = [];
+    
+    Object.entries(frequencies).forEach(([word, freq]) => {
+      for (let i = 0; i < freq; i++) {
+        repeatedWords.push(word);
+      }
+    });
+    
+    return shuffleArray(repeatedWords);
+  };
+
   const startNewTest = () => {
-    // Prepare the word set based on current allWords
-    const newWords = generateWordSet(wordCount);
+    const wpmTarget = parseInt(localStorage.getItem('wpmTarget') || '40');
+    const newWords = generateWordSet(wordCount, wpmTarget);
     if (newWords.length > 0) {
       setWords(newWords);
       setCurrentWordIndex(0);
@@ -119,66 +140,6 @@ export default function TypingTest() {
     });
 
     return frequencies;
-  };
-
-  const getWorstNonGraduatedWords = (count: number = 10) => {
-    const isGraduated = (score: number) => score > 0 && score < (60000 / (40 * 5));
-    
-    // Get all non-graduated words (scored but not graduated)
-    const nonGraduatedWords = Object.entries(globalWordStats)
-      .filter(([, stats]) => stats.lastScore > 0 && !isGraduated(stats.lastScore))
-      .sort(([, a], [, b]) => b.lastScore - a.lastScore)
-      .map(([word]) => word);
-
-    // Get unscored words to fill if needed
-    const unscoredWords = Object.entries(globalWordStats)
-      .filter(([, stats]) => stats.lastScore === 0)
-      .map(([word]) => word);
-
-    // Combine worst performers with unscored words if needed
-    const selectedWords = nonGraduatedWords.slice(0, count);
-    const remaining = count - selectedWords.length;
-
-    if (remaining > 0) {
-      selectedWords.push(...unscoredWords.slice(0, remaining));
-    }
-
-    return selectedWords;
-  };
-
-  const generateWordSet = (count: number) => {
-    const isGraduated = (score: number) => score > 0 && score < (60000 / (40 * 5));  // Graduation threshold
-    
-    // Get un-graduated words with lastScore > 0
-    const unGraduatedWords = Object.entries(globalWordStats)
-      .filter(([, stats]) => stats.lastScore > 0 && !isGraduated(stats.lastScore));
-
-    // Get unscored words (lastScore === 0)
-    const unscoredWords = Object.entries(globalWordStats)
-      .filter(([, stats]) => stats.lastScore === 0);
-
-    // Combine un-graduated words and unscored words
-    const combinedWords = [...unGraduatedWords, ...unscoredWords];
-
-    // Sort combined words based on lastScore (unscored words have lastScore === 0)
-    const sortedWords = combinedWords
-      .sort(([, a], [, b]) => (b.lastScore || 0) - (a.lastScore || 0))
-      .map(([word]) => word);
-
-    // Select top 10 words
-    const topWords = sortedWords.slice(0, 10);
-
-    // Generate frequency distribution
-    const frequencies = generateFrequencyDistribution(count, topWords);
-    const repeatedWords: string[] = [];
-
-    Object.entries(frequencies).forEach(([word, freq]) => {
-      for (let i = 0; i < freq; i++) {
-        repeatedWords.push(word);
-      }
-    });
-
-    return shuffleArray(repeatedWords);
   };
 
   const aggregateWordStats = () => {
@@ -371,6 +332,10 @@ export default function TypingTest() {
     </div>
   );
 
+  const handleWpmChange = (newWpm: number) => {
+    startNewTest();
+  };
+
   return (
     <>
       {renderHeader()}
@@ -378,6 +343,7 @@ export default function TypingTest() {
         isOpen={isSidebarOpen}
         wordStats={globalWordStats}
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        onWpmChange={handleWpmChange}
       />
       <div className={`transition-all duration-300 ${isSidebarOpen ? 'ml-64' : ''}`}>
         <div className="flex flex-col items-center gap-4" onClick={() => inputRef.current?.focus()}>
