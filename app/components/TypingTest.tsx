@@ -31,7 +31,7 @@ export default function TypingTest() {
     }), {});
   });
 
-  const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(false);
+  const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(true);
   const [allWords, setAllWords] = useState<string[]>(wordList);
   const [words, setWords] = useState<string[]>([]);
   const [currentInput, setCurrentInput] = useState('');
@@ -347,11 +347,11 @@ export default function TypingTest() {
         toggleSidebar={() => setIsGraduatedSidebarOpen(!isGraduatedSidebarOpen)}
         wpmTarget={parseInt(localStorage.getItem('wpmTarget') || '40')}
       />
-      <div className={`flex-1 transition-all duration-300 
+      <div className={`flex-1 min-h-screen flex items-center transition-all duration-300 
         ${isSidebarOpen ? 'ml-64' : ''} 
         ${isGraduatedSidebarOpen ? 'mr-64' : ''}`}
       >
-        <div className="flex flex-col items-center gap-4 w-full h-full" onClick={() => inputRef.current?.focus()}>
+        <div className="flex flex-col items-center gap-4 w-full px-16" onClick={() => inputRef.current?.focus()}>
           <div className="flex items-center justify-between w-full px-8">
             <div className="text-xl">
               {testStarted ? 'Typing...' : 'Type to start'}
