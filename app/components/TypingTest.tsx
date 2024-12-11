@@ -121,25 +121,36 @@ export default function TypingTest() {
     return frequencies;
   };
 
-  const generateWordSet = (count: number) => {
-    // Get all scored words from globalWordStats
-    const isGraduated = (score: number) => score > 0 && score < (60000 / (40 * 5)); // 40 wpm target
+  const getWorstNonGraduatedWords = (count: number = 10) => {
+    const isGraduated = (score: number) => score > 0 && score < (60000 / (40 * 5));
     
-    const scoredWords = Object.entries(globalWordStats)
-      .filter(([, stats]) => stats.lastScore > 0)
-      .sort(([, a], [, b]) => {
-        const aGraduated = isGraduated(a.lastScore);
-        const bGraduated = isGraduated(b.lastScore);
-        
-        if (aGraduated !== bGraduated) return aGraduated ? 1 : -1;
-        return b.lastScore - a.lastScore;
-      })
+    // Get all non-graduated words (scored but not graduated)
+    const nonGraduatedWords = Object.entries(globalWordStats)
+      .filter(([, stats]) => stats.lastScore > 0 && !isGraduated(stats.lastScore))
+      .sort(([, a], [, b]) => b.lastScore - a.lastScore)
       .map(([word]) => word);
 
-    if (scoredWords.length > 0) {
-      // Always use just the worst 10 (or all if less than 10)
-      const worstWords = scoredWords.slice(0, Math.min(10, scoredWords.length));
-      const frequencies = generateFrequencyDistribution(count, worstWords);
+    // Get unscored words to fill if needed
+    const unscoredWords = Object.entries(globalWordStats)
+      .filter(([, stats]) => stats.lastScore === 0)
+      .map(([word]) => word);
+
+    // Combine worst performers with unscored words if needed
+    const selectedWords = nonGraduatedWords.slice(0, count);
+    const remaining = count - selectedWords.length;
+
+    if (remaining > 0) {
+      selectedWords.push(...unscoredWords.slice(0, remaining));
+    }
+
+    return selectedWords;
+  };
+
+  const generateWordSet = (count: number) => {
+    const bottomWords = getWorstNonGraduatedWords(10);
+    
+    if (bottomWords.length > 0) {
+      const frequencies = generateFrequencyDistribution(count, bottomWords);
       const repeatedWords: string[] = [];
       
       Object.entries(frequencies).forEach(([word, freq]) => {
@@ -152,24 +163,7 @@ export default function TypingTest() {
     }
 
     // Only use sequential words from wordList for the very first test
-    const initialWords = wordList.slice(0, count);
-    return shuffleArray(initialWords);
-  };
-
-  const getBottomWords = () => {
-    const isGraduated = (score: number) => score > 0 && score < (60000 / (40 * 5));
-    
-    return Object.entries(globalWordStats)
-      .filter(([, stats]) => stats.lastScore > 0)
-      .sort(([, a], [, b]) => {
-        const aGraduated = isGraduated(a.lastScore);
-        const bGraduated = isGraduated(b.lastScore);
-        
-        if (aGraduated !== bGraduated) return aGraduated ? 1 : -1;
-        return bScore - aScore;
-      })
-      .map(([word]) => word)
-      .slice(0, 10);
+    return shuffleArray(wordList.slice(0, count));
   };
 
   const aggregateWordStats = () => {
@@ -319,7 +313,7 @@ export default function TypingTest() {
 
   const prepareNextTest = () => {
     // No need to read from localStorage since we're using globalWordStats
-    const bottomWords = getBottomWords();
+    const bottomWords = getWorstNonGraduatedWords();
     setAllWords(bottomWords.length > 0 ? bottomWords : wordList);
     const newWords = generateWordSet(wordCount);
     setWords(newWords);
