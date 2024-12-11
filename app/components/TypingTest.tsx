@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
-import { WordStats, getTopWordsForTest, calculateGraduationThreshold } from '../utils/wordUtils';
+import { WordStats, getTopWordsForTest, calculateGraduationThreshold, isGraduated } from '../utils/wordUtils';
 
 interface WordData {
   totalTime: number;
@@ -82,19 +82,52 @@ export default function TypingTest() {
   // - getTopWordsForTest
 
   const generateWordSet = (count: number, wpmTarget: number) => {
-    const selectedWords = getTopWordsForTest(globalWordStats, wpmTarget);
-    if (selectedWords.length === 0) return shuffleArray(wordList.slice(0, count));
-    
-    const frequencies = generateFrequencyDistribution(count, selectedWords);
-    const repeatedWords: string[] = [];
-    
-    Object.entries(frequencies).forEach(([word, freq]) => {
-      for (let i = 0; i < freq; i++) {
-        repeatedWords.push(word);
-      }
-    });
-    
-    return shuffleArray(repeatedWords);
+    // Get graduation threshold
+    const graduationThreshold = calculateGraduationThreshold(wpmTarget);
+
+    // Filter out graduated words from globalWordStats
+    const nonGraduatedWordStats = Object.entries(globalWordStats)
+      .filter(([word, stats]) => {
+        const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
+        return !isGrad;
+      })
+      .reduce((acc, [word, stats]) => ({ ...acc, [word]: stats }), {} as Record<string, WordStats>);
+
+    // Get the worst performing non-graduated words
+    const selectedWords = getTopWordsForTest(nonGraduatedWordStats, wpmTarget);
+
+    // If no words are selected, use unscored words that are not graduated
+    let wordsForTest: string[];
+    if (selectedWords.length === 0) {
+      const unscoredWords = wordList.filter(word => {
+        const stats = globalWordStats[word];
+        const isUnscored = !stats.lastScore;
+        const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
+        return isUnscored && !isGrad;
+      });
+      wordsForTest = shuffleArray(unscoredWords).slice(0, count);
+    } else {
+      const frequencies = generateFrequencyDistribution(count, selectedWords);
+      const repeatedWords: string[] = [];
+      Object.entries(frequencies).forEach(([word, freq]) => {
+        for (let i = 0; i < freq; i++) {
+          repeatedWords.push(word);
+        }
+      });
+      wordsForTest = shuffleArray(repeatedWords);
+    }
+
+    // If still no words are found, fallback to all non-graduated words
+    if (wordsForTest.length === 0) {
+      const fallbackWords = wordList.filter(word => {
+        const stats = globalWordStats[word];
+        const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
+        return !isGrad;
+      });
+      wordsForTest = shuffleArray(fallbackWords).slice(0, count);
+    }
+
+    return wordsForTest;
   };
 
   const startNewTest = () => {
@@ -179,13 +212,13 @@ export default function TypingTest() {
     if (value.endsWith(' ')) {
       // Only process space if the word is complete and correct
       if (value.trim() === currentWord) {
-        setTypedWordsData([
-          ...typedWordsData,
+        setTypedWordsData(prev => [
+          ...prev,
           { 
             word: currentWord, 
             time: Date.now() - typedWordStartTime, 
             errors: isWordErrored ? 1 : 0 
-          },
+          }
         ]);
         
         if (currentWordIndex + 1 === words.length) {
@@ -245,17 +278,36 @@ export default function TypingTest() {
   };
 
   const finishTest = () => {
-    savePerformanceData();  // Changed to be synchronous
-  };
-
-  const savePerformanceData = () => {
+    setTestEnded(true);  // Set this first
     const updatedStats = calculateNewStats();
     setGlobalWordStats(updatedStats);
     localStorage.setItem('wordStats', JSON.stringify(updatedStats));
-    
-    // Only start new test after stats are updated
-    setTimeout(() => startNewTest(), 0);
   };
+
+  // Add a new effect specifically for test completion
+  useEffect(() => {
+    if (testEnded) {
+      const wpmTarget = parseInt(localStorage.getItem('wpmTarget') || '40');
+      const newWords = generateWordSet(wordCount, wpmTarget);
+      if (newWords.length > 0) {
+        // Small delay to ensure stats are updated
+        setTimeout(() => {
+          setWords(newWords);
+          setCurrentWordIndex(0);
+          setCorrectWords(0);
+          setCurrentInput('');
+          setTypedWordsData([]);
+          setTestEnded(false);
+          setStartTime(Date.now());
+          setTypedWordStartTime(Date.now());
+          setTestStarted(false);
+          setHasError(false);
+          setIsWordErrored(false);
+          inputRef.current?.focus();
+        }, 50);
+      }
+    }
+  }, [testEnded, globalWordStats]);
 
   const calculateNewStats = () => {
     const updatedStats = { ...globalWordStats };
