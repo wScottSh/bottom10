@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
+import GraduatedSidebar from './GraduatedSidebar';
 import { WordStats, getTopWordsForTest, calculateGraduationThreshold } from '../utils/wordUtils';
 
 interface WordData {
@@ -30,6 +31,7 @@ export default function TypingTest() {
     }), {});
   });
 
+  const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(false);
   const [allWords, setAllWords] = useState<string[]>(wordList);
   const [words, setWords] = useState<string[]>([]);
   const [currentInput, setCurrentInput] = useState('');
@@ -339,9 +341,18 @@ export default function TypingTest() {
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         onWpmChange={handleWpmChange}
       />
-      <div className={`transition-all duration-300 ${isSidebarOpen ? 'ml-64' : ''}`}>
-        <div className="flex flex-col items-center gap-4" onClick={() => inputRef.current?.focus()}>
-          <div className="flex items-center justify-between w-full max-w-[800px]">
+      <GraduatedSidebar
+        isOpen={isGraduatedSidebarOpen}
+        wordStats={globalWordStats}
+        toggleSidebar={() => setIsGraduatedSidebarOpen(!isGraduatedSidebarOpen)}
+        wpmTarget={parseInt(localStorage.getItem('wpmTarget') || '40')}
+      />
+      <div className={`flex-1 transition-all duration-300 
+        ${isSidebarOpen ? 'ml-64' : ''} 
+        ${isGraduatedSidebarOpen ? 'mr-64' : ''}`}
+      >
+        <div className="flex flex-col items-center gap-4 w-full h-full" onClick={() => inputRef.current?.focus()}>
+          <div className="flex items-center justify-between w-full px-8">
             <div className="text-xl">
               {testStarted ? 'Typing...' : 'Type to start'}
             </div>
@@ -366,7 +377,7 @@ export default function TypingTest() {
           )}
           <div 
             ref={wordsContainerRef}
-            className="relative text-2xl min-h-[120px] max-w-[800px] leading-relaxed"
+            className="w-full px-8 relative text-2xl min-h-[120px] leading-relaxed"
           >
             {words.map((word, wordIndex) => (
               <span

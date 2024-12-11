@@ -41,16 +41,11 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange 
       stats,
       isGraduated: isGraduated(stats.lastScore, wpmTarget)
     }))
+    .filter(entry => !entry.isGraduated)  // Only show non-graduated words
     .sort((a, b) => {
-      // First separate graduated vs non-graduated
-      if (a.isGraduated !== b.isGraduated) return a.isGraduated ? 1 : -1;
-      
-      // Then handle unscored vs scored
       if (!a.stats.lastScore && b.stats.lastScore) return 1;
       if (a.stats.lastScore && !b.stats.lastScore) return -1;
       if (!a.stats.lastScore && !b.stats.lastScore) return 0;
-      
-      // Finally sort by score (higher = worse performance)
       return b.stats.lastScore - a.stats.lastScore;
     });
 
