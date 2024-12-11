@@ -245,11 +245,19 @@ export default function TypingTest() {
   };
 
   const finishTest = () => {
-    savePerformanceData();
-    startNewTest();
+    savePerformanceData();  // Changed to be synchronous
   };
 
   const savePerformanceData = () => {
+    const updatedStats = calculateNewStats();
+    setGlobalWordStats(updatedStats);
+    localStorage.setItem('wordStats', JSON.stringify(updatedStats));
+    
+    // Only start new test after stats are updated
+    setTimeout(() => startNewTest(), 0);
+  };
+
+  const calculateNewStats = () => {
     const updatedStats = { ...globalWordStats };
     
     // Group repeated words and calculate averages
@@ -262,7 +270,7 @@ export default function TypingTest() {
       return acc;
     }, {} as Record<string, { totalTime: number; count: number; }>);
 
-    // Update global stats with averaged scores
+    // Update stats with averaged scores
     Object.entries(wordGroups).forEach(([word, { totalTime, count }]) => {
       const avgTime = totalTime / count;
       const normalizedScore = avgTime / word.length;
@@ -275,8 +283,7 @@ export default function TypingTest() {
       };
     });
 
-    setGlobalWordStats(updatedStats);
-    localStorage.setItem('wordStats', JSON.stringify(updatedStats));
+    return updatedStats;
   };
 
   const normalizeWordTime = (time: number, wordLength: number): number => {
