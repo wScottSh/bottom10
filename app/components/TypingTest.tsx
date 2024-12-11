@@ -169,14 +169,8 @@ export default function TypingTest() {
     const currentWord = words[currentWordIndex];
 
     if (!currentWord) {
-      endTest();
+      finishTest();
       return;
-    }
-
-    // Start the timer on first keypress
-    if (!testStarted && value.length === 1) {
-      setTestStarted(true);
-      setTypedWordStartTime(Date.now());
     }
 
     // Handle word completion with space
@@ -192,19 +186,25 @@ export default function TypingTest() {
           },
         ]);
         
-        setCorrectWords(correctWords + 1);
-        setCurrentWordIndex(currentWordIndex + 1);
-        setCurrentInput('');
-        setCurrentCharIndex(0);
-        setTypedWordStartTime(Date.now());
-        setHasError(false);
-        setIsWordErrored(false);
-
         if (currentWordIndex + 1 === words.length) {
-          endTest();
+          finishTest();
+        } else {
+          setCorrectWords(correctWords + 1);
+          setCurrentWordIndex(currentWordIndex + 1);
+          setCurrentInput('');
+          setCurrentCharIndex(0);
+          setTypedWordStartTime(Date.now());
+          setHasError(false);
+          setIsWordErrored(false);
         }
       }
       return;
+    }
+
+    // Start the timer on first keypress
+    if (!testStarted && value.length === 1) {
+      setTestStarted(true);
+      setTypedWordStartTime(Date.now());
     }
 
     // Handle backspace
@@ -242,16 +242,9 @@ export default function TypingTest() {
     }
   };
 
-  const endTest = () => {
-    setTestEnded(true);
+  const finishTest = () => {
     savePerformanceData();
-    // Remove the automatic call to prepareNextTest
-    // Let the user explicitly start the next test
-  };
-
-  const updateGlobalStats = (newStats: typeof globalWordStats) => {
-    setGlobalWordStats(newStats);
-    localStorage.setItem('wordStats', JSON.stringify(newStats));
+    startNewTest();
   };
 
   const savePerformanceData = () => {
@@ -280,7 +273,8 @@ export default function TypingTest() {
       };
     });
 
-    updateGlobalStats(updatedStats);
+    setGlobalWordStats(updatedStats);
+    localStorage.setItem('wordStats', JSON.stringify(updatedStats));
   };
 
   const normalizeWordTime = (time: number, wordLength: number): number => {
@@ -347,100 +341,72 @@ export default function TypingTest() {
       />
       <div className={`transition-all duration-300 ${isSidebarOpen ? 'ml-64' : ''}`}>
         <div className="flex flex-col items-center gap-4" onClick={() => inputRef.current?.focus()}>
-          {!testEnded ? (
-            <>
-              <div className="flex items-center justify-between w-full max-w-[800px]">
-                <div className="text-xl">
-                  {testStarted ? 'Typing...' : 'Type to start'}
-                </div>
-                <button onClick={toggleSettings}>
-                  {showSettings ? 'Hide Settings' : 'Show Settings'}
-                </button>
-              </div>
-              {showSettings && (
-                <div className="mb-4 flex flex-col gap-2">
-                  <label>
-                    Words per test:
-                    <input
-                      type="number"
-                      value={wordCount}
-                      onChange={handleWordCountChange}
-                      min="10"
-                      max="200"
-                      className="ml-2 w-20 p-1 bg-gray-700 text-white rounded"
-                    />
-                  </label>
-                </div>
-              )}
-              <div 
-                ref={wordsContainerRef}
-                className="relative text-2xl min-h-[120px] max-w-[800px] leading-relaxed"
-              >
-                {words.map((word, wordIndex) => (
-                  <span
-                    key={wordIndex}
-                    className={`word ${
-                      wordIndex === currentWordIndex 
-                        ? isWordErrored ? 'error' : 'current' 
-                        : wordIndex < currentWordIndex ? 'completed' : ''
-                    }`}
-                  >
-                    {word.split('').map((char, charIndex) => (
-                      <span 
-                        key={charIndex} 
-                        className="char relative pb-[0.3em]"
-                      >
-                        {char}
-                        {wordIndex === currentWordIndex && 
-                        charIndex === currentCharIndex && (
-                          <span className="absolute left-0 bottom-[0.15em] w-full h-[2px] bg-[#e2b714] transition-all duration-[50ms] ease-out" />
-                        )}
-                      </span>
-                    ))}
-                    <span className="char relative pb-[0.3em]">
-                      {'\u00A0'}
-                      {wordIndex === currentWordIndex && 
-                      word.length === currentCharIndex && (
-                        <span className="absolute left-0 bottom-[0.15em] w-full h-[2px] bg-[#e2b714] transition-all duration-[50ms] ease-out" />
-                      )}
-                    </span>{/* Remove whitespace here */}
-                  </span>
-                ))}{/* Remove whitespace here */}
-              </div>
-              <input
-                ref={inputRef}
-                type="text"
-                value={currentInput}
-                onChange={handleInput}
-                className="opacity-0 absolute"
-                autoFocus
-              />
-            </>
-          ) : (
-            <div className="text-center">
-              <h2 className="text-2xl mb-4">Test Completed!</h2>
-              <div className="mt-4">
-                <h3 className="text-xl mb-2">Your Performance:</h3>
-                <ul className="space-y-1">
-                  {getWordStats().map(({ word, time, normalizedScore, errors }, index) => (
-                    <li key={index} className="font-mono">
-                      {word}: {Math.round(normalizedScore)} (raw: {Math.round(time)}ms)
-                      {errors > 0 ? ' (with errors)' : ''}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <button
-                  className="mt-4"
-                  onClick={startNewTest}
-                >
-                  Start Next Test
-                </button>
-                <span className="text-sm text-gray-400">[press enter]</span>
-              </div>
+          <div className="flex items-center justify-between w-full max-w-[800px]">
+            <div className="text-xl">
+              {testStarted ? 'Typing...' : 'Type to start'}
+            </div>
+            <button onClick={toggleSettings}>
+              {showSettings ? 'Hide Settings' : 'Show Settings'}
+            </button>
+          </div>
+          {showSettings && (
+            <div className="mb-4 flex flex-col gap-2">
+              <label>
+                Words per test:
+                <input
+                  type="number"
+                  value={wordCount}
+                  onChange={handleWordCountChange}
+                  min="10"
+                  max="200"
+                  className="ml-2 w-20 p-1 bg-gray-700 text-white rounded"
+                />
+              </label>
             </div>
           )}
+          <div 
+            ref={wordsContainerRef}
+            className="relative text-2xl min-h-[120px] max-w-[800px] leading-relaxed"
+          >
+            {words.map((word, wordIndex) => (
+              <span
+                key={wordIndex}
+                className={`word ${
+                  wordIndex === currentWordIndex 
+                    ? isWordErrored ? 'error' : 'current' 
+                    : wordIndex < currentWordIndex ? 'completed' : ''
+                }`}
+              >
+                {word.split('').map((char, charIndex) => (
+                  <span 
+                    key={charIndex} 
+                    className="char relative pb-[0.3em]"
+                  >
+                    {char}
+                    {wordIndex === currentWordIndex && 
+                    charIndex === currentCharIndex && (
+                      <span className="absolute left-0 bottom-[0.15em] w-full h-[2px] bg-[#e2b714] transition-all duration-[50ms] ease-out" />
+                    )}
+                  </span>
+                ))}
+                <span className="char relative pb-[0.3em]">
+                  {'\u00A0'}
+                  {wordIndex === currentWordIndex && 
+                  word.length === currentCharIndex && (
+                    <span className="absolute left-0 bottom-[0.15em] w-full h-[2px] bg-[#e2b714] transition-all duration-[50ms] ease-out" />
+                  )}
+                </span>{/* Remove whitespace here */}
+              </span>
+            ))}{/* Remove whitespace here */}
+          </div>
+          <input
+            ref={inputRef}
+            type="text"
+            value={currentInput}
+            onChange={handleInput}
+            className="opacity-0 absolute"
+            autoFocus
+          />
         </div>
       </div>
     </>
