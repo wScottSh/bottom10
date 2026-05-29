@@ -17,18 +17,12 @@ export const isGraduated = (score: number, wpm: number): boolean => {
 
 export const getTopWordsForTest = (wordStats: Record<string, WordStats>, wpm: number) => {
   const graduationThreshold = calculateGraduationThreshold(wpm);
-  console.log('Graduation threshold:', graduationThreshold); // Debug logging
   
   // First get all words that are either unscored or above graduation threshold
   const eligibleWords = Object.entries(wordStats)
     .filter(([word, stats]) => {
       const isUnscored = !stats.lastScore;
       const isAboveThreshold = stats.lastScore >= graduationThreshold;
-      
-      // Debug logging
-      if (stats.lastScore) {
-        console.log(`${word}: score=${stats.lastScore}, graduated=${!isAboveThreshold}`);
-      }
       
       return isUnscored || isAboveThreshold;
     })
