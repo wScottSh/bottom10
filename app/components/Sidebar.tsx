@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, KeyboardEvent } from 'react';
+import { useState, useEffect, KeyboardEvent } from 'react';
 import { getTopWordsForTest, calculateGraduationThreshold, WordStats, isGraduated } from '../utils/wordUtils';
+import { loadWpmTarget, saveWpmTarget } from '../utils/persistence';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -11,18 +12,20 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange }: SidebarProps) {
-  const [wpmTarget, setWpmTarget] = useState<number>(() => {
-    const saved = localStorage.getItem('wpmTarget');
-    return saved ? parseInt(saved) : 40;
-  });
+  const [wpmTarget, setWpmTarget] = useState<number>(40);
   const [isEditingWpm, setIsEditingWpm] = useState(false);
   const [tempWpm, setTempWpm] = useState('');
+
+  useEffect(() => {
+    const saved = loadWpmTarget();
+    setWpmTarget(saved);
+  }, []);
 
   const handleWpmSubmit = () => {
     const newWpm = parseInt(tempWpm);
     if (newWpm > 0) {
       setWpmTarget(newWpm);
-      localStorage.setItem('wpmTarget', newWpm.toString());
+      saveWpmTarget(newWpm);
       onWpmChange(newWpm);
     }
     setIsEditingWpm(false);

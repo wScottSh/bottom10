@@ -5,6 +5,7 @@ import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
 import { WordStats, getTopWordsForTest, calculateGraduationThreshold, isGraduated } from '../utils/wordUtils';
+import { loadWordStats, saveWordStats, loadWpmTarget } from '../utils/persistence';
 
 interface WordData {
   totalTime: number;
@@ -70,10 +71,9 @@ export default function TypingTest() {
   }, [testEnded]); // Only re-add listener if testEnded changes
 
   useEffect(() => {
-    // Load saved stats on mount
-    const savedStats = localStorage.getItem('wordStats');
-    if (savedStats) {
-      setGlobalWordStats(JSON.parse(savedStats));
+    const savedStats = loadWordStats();
+    if (Object.keys(savedStats).length > 0) {
+      setGlobalWordStats(savedStats);
     }
   }, []);
 
@@ -131,7 +131,7 @@ export default function TypingTest() {
   };
 
   const startNewTest = () => {
-    const wpmTarget = parseInt(localStorage.getItem('wpmTarget') || '40');
+    const wpmTarget = loadWpmTarget();
     const newWords = generateWordSet(wordCount, wpmTarget);
     if (newWords.length > 0) {
       setWords(newWords);
@@ -278,16 +278,16 @@ export default function TypingTest() {
   };
 
   const finishTest = () => {
-    setTestEnded(true);  // Set this first
+    setTestEnded(true);
     const updatedStats = calculateNewStats();
     setGlobalWordStats(updatedStats);
-    localStorage.setItem('wordStats', JSON.stringify(updatedStats));
+    saveWordStats(updatedStats);
   };
 
   // Add a new effect specifically for test completion
   useEffect(() => {
     if (testEnded) {
-      const wpmTarget = parseInt(localStorage.getItem('wpmTarget') || '40');
+      const wpmTarget = loadWpmTarget();
       const newWords = generateWordSet(wordCount, wpmTarget);
       if (newWords.length > 0) {
         // Small delay to ensure stats are updated
@@ -404,7 +404,7 @@ export default function TypingTest() {
         isOpen={isGraduatedSidebarOpen}
         wordStats={globalWordStats}
         toggleSidebar={() => setIsGraduatedSidebarOpen(!isGraduatedSidebarOpen)}
-        wpmTarget={parseInt(localStorage.getItem('wpmTarget') || '40')}
+        wpmTarget={loadWpmTarget()}
       />
       <div className={`flex-1 min-h-screen flex items-center transition-all duration-300 
         ${isSidebarOpen ? 'ml-64' : ''} 
