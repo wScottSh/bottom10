@@ -26,7 +26,7 @@ function getDefaultData(): StoredData {
   };
 }
 
-function createInMemoryStorage(initial: Record<string, string> = {}): StorageLike {
+export function createInMemoryStorage(initial: Record<string, string> = {}): StorageLike {
   const store: Record<string, string> = { ...initial };
   return {
     getItem(key: string): string | null {
@@ -63,9 +63,7 @@ function migrateFromLegacy(storage: StorageLike): StoredData {
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
           wordStats = parsed as Record<string, WordStats>;
         }
-      } catch {
-        // ignore corrupt legacy
-      }
+      } catch {}
     }
     let wpmTarget = DEFAULT_WPM_TARGET;
     if (legacyWpmRaw) {
@@ -79,14 +77,11 @@ function migrateFromLegacy(storage: StorageLike): StoredData {
       wordStats,
       wpmTarget,
     };
-    // Write migrated data to new key (best effort)
     try {
       storage.setItem(STORAGE_KEY, JSON.stringify(migrated));
       storage.removeItem?.(LEGACY_WORD_STATS_KEY);
       storage.removeItem?.(LEGACY_WPM_KEY);
-    } catch {
-      // ignore storage write failures
-    }
+    } catch {}
     return migrated;
   } catch {
     return getDefaultData();
@@ -100,20 +95,25 @@ export function loadAppData(storage?: StorageLike): StoredData {
     if (!raw) {
       return migrateFromLegacy(safeStorage);
     }
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object') {
-      const version = typeof parsed.version === 'number' ? parsed.version : CURRENT_VERSION;
-      const wordStats = (parsed.wordStats && typeof parsed.wordStats === 'object')
-        ? parsed.wordStats as Record<string, WordStats>
-        : {};
-      const wpmTarget = typeof parsed.wpmTarget === 'number' && parsed.wpmTarget > 0
-        ? parsed.wpmTarget
-        : DEFAULT_WPM_TARGET;
-      return { version, wordStats, wpmTarget };
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return getDefaultData();
     }
-    return getDefaultData();
+    const p = parsed as { version?: unknown; wordStats?: unknown; wpmTarget?: unknown };
+    let version = CURRENT_VERSION;
+    if (typeof p.version === 'number') {
+      version = p.version;
+    }
+    let wordStats: Record<string, WordStats> = {};
+    if (p.wordStats && typeof p.wordStats === 'object' && !Array.isArray(p.wordStats)) {
+      wordStats = p.wordStats as Record<string, WordStats>;
+    }
+    let wpmTarget = DEFAULT_WPM_TARGET;
+    if (typeof p.wpmTarget === 'number' && p.wpmTarget > 0) {
+      wpmTarget = p.wpmTarget;
+    }
+    return { version, wordStats, wpmTarget };
   } catch {
-    // corrupt JSON or other error -> safe default
     return getDefaultData();
   }
 }
@@ -123,14 +123,18 @@ export function saveAppData(partial: Partial<StoredData>, storage?: StorageLike)
   const current = loadAppData(safeStorage);
   const toSave: StoredData = {
     version: CURRENT_VERSION,
-    wordStats: partial.wordStats !== undefined ? partial.wordStats : current.wordStats,
-    wpmTarget: partial.wpmTarget !== undefined ? partial.wpmTarget : current.wpmTarget,
+    wordStats: current.wordStats,
+    wpmTarget: current.wpmTarget,
   };
+  if (partial.wordStats !== undefined) {
+    toSave.wordStats = partial.wordStats;
+  }
+  if (partial.wpmTarget !== undefined) {
+    toSave.wpmTarget = partial.wpmTarget;
+  }
   try {
     safeStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-  } catch {
-    // fail silently on write errors (e.g. quota)
-  }
+  } catch {}
 }
 
 export function loadWordStats(storage?: StorageLike): Record<string, WordStats> {

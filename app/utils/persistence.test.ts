@@ -1,23 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { StorageLike } from './persistence';
-import { loadWordStats, saveWordStats, loadWpmTarget, saveWpmTarget, CURRENT_VERSION, loadAppData, saveAppData } from './persistence';
-
-// Mock storage factory for tests
-function createMockStorage(initial: Record<string, string> = {}): StorageLike {
-  const store = { ...initial };
-  return {
-    getItem(key: string): string | null {
-      return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null;
-    },
-    setItem(key: string, value: string): void {
-      store[key] = value;
-    },
-    removeItem(key: string): void {
-      delete store[key];
-    },
-  };
-}
+import { loadWordStats, saveWordStats, loadWpmTarget, saveWpmTarget, CURRENT_VERSION, loadAppData, createInMemoryStorage as createMockStorage } from './persistence';
 
 test('loadWordStats returns empty object for missing data', () => {
   const storage = createMockStorage();
