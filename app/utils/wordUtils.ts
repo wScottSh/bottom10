@@ -16,27 +16,19 @@ export const isGraduated = (score: number, wpm: number): boolean => {
 };
 
 export const getTopWordsForTest = (wordStats: Record<string, WordStats>, wpm: number) => {
-  const graduationThreshold = calculateGraduationThreshold(wpm);
-  
-  // First get all words that are either unscored or above graduation threshold
-  const eligibleWords = Object.entries(wordStats)
-    .filter(([word, stats]) => {
-      const isUnscored = !stats.lastScore;
-      const isAboveThreshold = stats.lastScore >= graduationThreshold;
-      
-      return isUnscored || isAboveThreshold;
-    })
+  // Select non-graduated words, then sort worst (highest score) first; unscored (score 0) come after scored words
+  const candidates = Object.entries(wordStats)
+    .filter(([word, stats]) => !isGraduated(stats.lastScore, wpm))
     .map(([word, stats]) => ({
       word,
       score: stats.lastScore || 0
     }));
 
-  // Sort with scored words first, worst performers at the top
-  const sortedWords = eligibleWords.sort((a, b) => {
-    if (!a.score && b.score) return 1;  // Unscored goes after scored
-    if (a.score && !b.score) return -1;
+  const sortedCandidates = [...candidates].sort((a, b) => {
+    if (a.score === 0 && b.score !== 0) return 1;  // Unscored goes after scored
+    if (a.score !== 0 && b.score === 0) return -1;
     return b.score - a.score;  // Higher scores (worse) first
   });
 
-  return sortedWords.slice(0, 10).map(entry => entry.word);
+  return sortedCandidates.slice(0, 10).map(entry => entry.word);
 };
