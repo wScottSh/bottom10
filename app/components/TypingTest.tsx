@@ -5,26 +5,11 @@ import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
 import { WordStats, getTopWordsForTest, calculateGraduationThreshold, isGraduated } from '../utils/wordUtils';
-
-interface WordData {
-  totalTime: number;
-  attempts: number;
-  errors: number;
-}
+import { loadWordStats, saveWordStats, loadWpmTarget } from '../utils/persistence';
 
 export default function TypingTest() {
-  // Add interface for word performance data
-  interface WordPerformance {
-    word: string;
-    time: number;
-    normalizedScore: number;
-    errors: number;
-  }
-
-  // Add new state for sidebar and global word stats
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);  // Changed to true
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [globalWordStats, setGlobalWordStats] = useState(() => {
-    // Initialize with empty stats for all words
     return wordList.reduce((acc, word) => ({
       ...acc,
       [word]: { word, time: 0, attempts: 0, lastScore: 0 }
@@ -48,7 +33,7 @@ export default function TypingTest() {
   const wordsContainerRef = useRef<HTMLDivElement>(null);
   const [currentCharIndex, setCurrentCharIndex] = useState(0);
   const [hasError, setHasError] = useState(false);
-  const [isWordErrored, setIsWordErrored] = useState(false);  // Track if word has had an error
+  const [isWordErrored, setIsWordErrored] = useState(false);
   const [testStarted, setTestStarted] = useState(false);
   const [wordCount, setWordCount] = useState<number>(50);
 
@@ -57,7 +42,6 @@ export default function TypingTest() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Add new useEffect for keyboard handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (testEnded && e.key === 'Enter') {
@@ -67,25 +51,18 @@ export default function TypingTest() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [testEnded]); // Only re-add listener if testEnded changes
+  }, [testEnded]);
 
   useEffect(() => {
-    // Load saved stats on mount
-    const savedStats = localStorage.getItem('wordStats');
-    if (savedStats) {
-      setGlobalWordStats(JSON.parse(savedStats));
+    const savedStats = loadWordStats();
+    if (Object.keys(savedStats).length > 0) {
+      setGlobalWordStats(savedStats);
     }
   }, []);
 
-  // Remove these functions as they're now in wordUtils:
-  // - calculateGraduationThreshold
-  // - getTopWordsForTest
-
   const generateWordSet = (count: number, wpmTarget: number) => {
-    // Get graduation threshold
     const graduationThreshold = calculateGraduationThreshold(wpmTarget);
 
-    // Filter out graduated words from globalWordStats
     const nonGraduatedWordStats = Object.entries(globalWordStats)
       .filter(([word, stats]) => {
         const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
@@ -93,10 +70,8 @@ export default function TypingTest() {
       })
       .reduce((acc, [word, stats]) => ({ ...acc, [word]: stats }), {} as Record<string, WordStats>);
 
-    // Get the worst performing non-graduated words
     const selectedWords = getTopWordsForTest(nonGraduatedWordStats, wpmTarget);
 
-    // If no words are selected, use unscored words that are not graduated
     let wordsForTest: string[];
     if (selectedWords.length === 0) {
       const unscoredWords = wordList.filter(word => {
@@ -117,7 +92,6 @@ export default function TypingTest() {
       wordsForTest = shuffleArray(repeatedWords);
     }
 
-    // If still no words are found, fallback to all non-graduated words
     if (wordsForTest.length === 0) {
       const fallbackWords = wordList.filter(word => {
         const stats = globalWordStats[word];
@@ -131,7 +105,7 @@ export default function TypingTest() {
   };
 
   const startNewTest = () => {
-    const wpmTarget = parseInt(localStorage.getItem('wpmTarget') || '40');
+    const wpmTarget = loadWpmTarget();
     const newWords = generateWordSet(wordCount, wpmTarget);
     if (newWords.length > 0) {
       setWords(newWords);
@@ -177,22 +151,6 @@ export default function TypingTest() {
     return frequencies;
   };
 
-  const aggregateWordStats = () => {
-    const stats: Record<string, { totalTime: number, totalChars: number, attempts: number, normalizedScore: number }> = {};
-    
-    typedWordsData.forEach(({ word, time }) => {
-      if (!stats[word]) {
-        stats[word] = { totalTime: 0, totalChars: 0, attempts: 0, normalizedScore: 0 };
-      }
-      stats[word].totalTime += time;
-      stats[word].totalChars += word.length;
-      stats[word].attempts += 1;
-      stats[word].normalizedScore = stats[word].totalTime / stats[word].totalChars / stats[word].attempts;
-    });
-
-    return stats;
-  };
-
   const shuffleArray = (array: string[]) => {
     return [...array].sort(() => Math.random() - 0.5);
   };
@@ -208,9 +166,7 @@ export default function TypingTest() {
       return;
     }
 
-    // Handle word completion with space
     if (value.endsWith(' ')) {
-      // Only process space if the word is complete and correct
       if (value.trim() === currentWord) {
         setTypedWordsData(prev => [
           ...prev,
@@ -236,18 +192,14 @@ export default function TypingTest() {
       return;
     }
 
-    // Start the timer on first keypress
     if (!testStarted && value.length === 1) {
       setTestStarted(true);
       setTypedWordStartTime(Date.now());
     }
 
-    // Handle backspace
     if (value.length < currentInput.length) {
       setCurrentInput(value);
-      // Always allow cursor to move when backspacing
       setCurrentCharIndex(value.length);
-      // Reset error states if backspacing to empty
       if (value.length === 0) {
         setHasError(false);
         setIsWordErrored(false);
@@ -255,21 +207,16 @@ export default function TypingTest() {
       return;
     }
 
-    // Handle new character input
     const newChar = value[value.length - 1];
     const expectedChar = currentWord[currentInput.length];
 
     if (newChar !== expectedChar) {
-      // Error case: Update error states
       setHasError(true);
       setIsWordErrored(true);
-      // Keep cursor at current position, but allow input to be stored
-      // This enables backspacing while maintaining visual cursor position
       setCurrentInput(value.slice(0, currentCharIndex + 1));
       return;
     }
 
-    // Correct character input
     setCurrentInput(value);
     setCurrentCharIndex(value.length);
     if (hasError && value === currentWord.slice(0, value.length)) {
@@ -278,19 +225,17 @@ export default function TypingTest() {
   };
 
   const finishTest = () => {
-    setTestEnded(true);  // Set this first
+    setTestEnded(true);
     const updatedStats = calculateNewStats();
     setGlobalWordStats(updatedStats);
-    localStorage.setItem('wordStats', JSON.stringify(updatedStats));
+    saveWordStats(updatedStats);
   };
 
-  // Add a new effect specifically for test completion
   useEffect(() => {
     if (testEnded) {
-      const wpmTarget = parseInt(localStorage.getItem('wpmTarget') || '40');
+      const wpmTarget = loadWpmTarget();
       const newWords = generateWordSet(wordCount, wpmTarget);
       if (newWords.length > 0) {
-        // Small delay to ensure stats are updated
         setTimeout(() => {
           setWords(newWords);
           setCurrentWordIndex(0);
@@ -312,7 +257,6 @@ export default function TypingTest() {
   const calculateNewStats = () => {
     const updatedStats = { ...globalWordStats };
     
-    // Group repeated words and calculate averages
     const wordGroups = typedWordsData.reduce((acc, { word, time }) => {
       if (!acc[word]) {
         acc[word] = { totalTime: 0, count: 0 };
@@ -322,7 +266,6 @@ export default function TypingTest() {
       return acc;
     }, {} as Record<string, { totalTime: number; count: number; }>);
 
-    // Update stats with averaged scores
     Object.entries(wordGroups).forEach(([word, { totalTime, count }]) => {
       const avgTime = totalTime / count;
       const normalizedScore = avgTime / word.length;
@@ -338,47 +281,15 @@ export default function TypingTest() {
     return updatedStats;
   };
 
-  const normalizeWordTime = (time: number, wordLength: number): number => {
-    return time / wordLength; // Time per character
-  };
-
-  const prepareNextTest = () => {
-    // No need to read from localStorage since we're using globalWordStats
-    const bottomWords = getWorstNonGraduatedWords();
-    setAllWords(bottomWords.length > 0 ? bottomWords : wordList);
-    const newWords = generateWordSet(wordCount);
-    setWords(newWords);
-    setCurrentWordIndex(0);
-    setCorrectWords(0);
-    setCurrentInput('');
-    setTypedWordsData([]);
-    setTestEnded(false);
-    setStartTime(Date.now());
-    setTypedWordStartTime(Date.now());
-    setTestStarted(false);
-  };
-
-  const getWordStats = (): WordPerformance[] => {
-    return typedWordsData
-      .map(({ word, time, errors }) => ({
-        word,
-        time,
-        normalizedScore: normalizeWordTime(time, word.length),
-        errors
-      }))
-      .sort((a, b) => b.normalizedScore - a.normalizedScore);
-  };
-
   const toggleSettings = () => {
     setShowSettings(!showSettings);
   };
 
   const handleWordCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const count = parseInt(e.target.value);
-    setWordCount(Math.max(10, Math.min(count, 200))); // Limit between 10 and 200 words
+    setWordCount(Math.max(10, Math.min(count, 200)));
   };
 
-  // Move settings button to top-right
   const renderHeader = () => (
     <div className="fixed top-4 right-4 z-10">
       <button onClick={toggleSettings}>
@@ -404,7 +315,7 @@ export default function TypingTest() {
         isOpen={isGraduatedSidebarOpen}
         wordStats={globalWordStats}
         toggleSidebar={() => setIsGraduatedSidebarOpen(!isGraduatedSidebarOpen)}
-        wpmTarget={parseInt(localStorage.getItem('wpmTarget') || '40')}
+        wpmTarget={loadWpmTarget()}
       />
       <div className={`flex-1 min-h-screen flex items-center transition-all duration-300 
         ${isSidebarOpen ? 'ml-64' : ''} 
