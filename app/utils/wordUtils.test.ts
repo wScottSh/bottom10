@@ -2,6 +2,7 @@ import { describe, it, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   generateFrequencyDistribution,
   selectWordsForTest,
+  generateWordSet,
   calculateNormalizedScore,
   calculateGraduationThreshold,
   isGraduated,
@@ -268,5 +269,62 @@ describe('wordUtils', () => {
       expect(result[1]).toBe('bad');
       expect(result[2]).toBe('unscored');
     });
+  });
+});
+
+describe('generateWordSet', () => {
+  const makeStats = (words: string[], overrides: Record<string, Partial<WordStats>> = {}): Record<string, WordStats> => {
+    const stats: Record<string, WordStats> = {};
+    for (const w of words) {
+      stats[w] = { word: w, time: 0, attempts: 0, lastScore: 0, ...overrides[w] };
+    }
+    return stats;
+  };
+
+  test('includes worst-scoring word when it has high lastScore', () => {
+    const allWords = ['the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'it'];
+    const stats = makeStats(allWords, {
+      the: { time: 1000, attempts: 3, lastScore: 1000 }
+    });
+
+    const result = generateWordSet(10, 40, stats, allWords);
+
+    expect(result.length).toBeGreaterThan(0);
+    expect(result).toContain('the');
+  });
+
+  test('uses provided stats immediately (no stale closure)', () => {
+    const allWords = ['the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'it'];
+
+    const updatedStats = makeStats(allWords, {
+      the: { time: 1000, attempts: 1, lastScore: 1000 }
+    });
+
+    // calling with freshly-computed updatedStats must reflect the new score immediately
+    const result = generateWordSet(10, 40, updatedStats, allWords);
+
+    expect(result).toContain('the');
+  });
+
+  test('excludes graduated words', () => {
+    const allWords = ['the', 'be', 'to', 'of', 'and'];
+    // wpmTarget=40 => threshold = 60000/(40*5) = 300ms; lastScore=100 < 300 & > 0 => graduated
+    const stats = makeStats(allWords, {
+      the: { time: 100, attempts: 5, lastScore: 100 }
+    });
+
+    for (let i = 0; i < 5; i++) {
+      const result = generateWordSet(10, 40, stats, allWords);
+      expect(result).not.toContain('the');
+    }
+  });
+
+  test('returns words when all are unscored', () => {
+    const allWords = ['the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'it'];
+    const stats = makeStats(allWords);
+
+    const result = generateWordSet(10, 40, stats, allWords);
+
+    expect(result.length).toBeGreaterThan(0);
   });
 });

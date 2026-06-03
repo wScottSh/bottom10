@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
-import { selectWordsForTest, calculateNormalizedScore } from '../utils/wordUtils';
+import { generateWordSet, calculateNormalizedScore } from '../utils/wordUtils';
 import { loadWordStats, saveWordStats, loadWpmTarget } from '../utils/persistence';
 
 export default function TypingTest() {
@@ -60,34 +60,29 @@ export default function TypingTest() {
     }
   }, []);
 
-  const generateWordSet = (count: number, wpmTarget: number) => {
-    const pool = selectWordsForTest(globalWordStats, wpmTarget, count, allWords);
-    if (pool.length === 0) return [];
-    return shuffleArray(pool).slice(0, count);
+
+  // Load a freshly generated word set and reset all per-test state.
+  const startTestWithWords = (newWords: string[]) => {
+    if (newWords.length === 0) return;
+    setWords(newWords);
+    setCurrentWordIndex(0);
+    setCorrectWords(0);
+    setCurrentInput('');
+    setTypedWordsData([]);
+    setTestEnded(false);
+    setStartTime(Date.now());
+    setTypedWordStartTime(Date.now());
+    setTestStarted(false);
+    setHasError(false);
+    setIsWordErrored(false);
+    inputRef.current?.focus();
   };
 
   const startNewTest = () => {
     const wpmTarget = loadWpmTarget();
-    const newWords = generateWordSet(wordCount, wpmTarget);
-    if (newWords.length > 0) {
-      setWords(newWords);
-      setCurrentWordIndex(0);
-      setCorrectWords(0);
-      setCurrentInput('');
-      setTypedWordsData([]);
-      setTestEnded(false);
-      setStartTime(Date.now());
-      setTypedWordStartTime(Date.now());
-      setTestStarted(false);
-      setHasError(false);
-      setIsWordErrored(false);
-      inputRef.current?.focus();
-    }
+    startTestWithWords(generateWordSet(wordCount, wpmTarget, globalWordStats, allWords));
   };
 
-  const shuffleArray = (array: string[]) => {
-    return [...array].sort(() => Math.random() - 0.5);
-  };
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (testEnded) return;
@@ -159,34 +154,14 @@ export default function TypingTest() {
   };
 
   const finishTest = () => {
-    setTestEnded(true);
     const updatedStats = calculateNewStats();
-    setGlobalWordStats(updatedStats);
-    saveWordStats(updatedStats);
-  };
+    const wpmTarget = loadWpmTarget();
+    const newWords = generateWordSet(wordCount, wpmTarget, updatedStats, allWords);
 
-  useEffect(() => {
-    if (testEnded) {
-      const wpmTarget = loadWpmTarget();
-      const newWords = generateWordSet(wordCount, wpmTarget);
-      if (newWords.length > 0) {
-        setTimeout(() => {
-          setWords(newWords);
-          setCurrentWordIndex(0);
-          setCorrectWords(0);
-          setCurrentInput('');
-          setTypedWordsData([]);
-          setTestEnded(false);
-          setStartTime(Date.now());
-          setTypedWordStartTime(Date.now());
-          setTestStarted(false);
-          setHasError(false);
-          setIsWordErrored(false);
-          inputRef.current?.focus();
-        }, 50);
-      }
-    }
-  }, [testEnded, globalWordStats]);
+    saveWordStats(updatedStats);
+    setGlobalWordStats(updatedStats);
+    startTestWithWords(newWords);
+  };
 
   const calculateNewStats = () => {
     const updatedStats = { ...globalWordStats };

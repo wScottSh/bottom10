@@ -37,6 +37,10 @@ export const getTopWordsForTest = (wordStats: Record<string, WordStats>, wpm: nu
   return sortedCandidates.slice(0, 10).map(entry => entry.word);
 };
 
+export const shuffleArray = (array: string[]): string[] => {
+  return [...array].sort(() => Math.random() - 0.5);
+};
+
 export const generateFrequencyDistribution = (wordCount: number, bottomWords: string[]): Record<string, number> => {
   const worstWordCount = Math.max(Math.floor(wordCount * 0.25), 1);
   const remainingCount = wordCount - worstWordCount;
@@ -87,4 +91,47 @@ export const selectWordsForTest = (
   }
 
   return repeatedWords;
+};
+
+// Builds the shuffled, count-sized word set for the next test. Pure: callers pass
+// freshly-computed stats so the next set deterministically reflects the just-finished
+// session (no stale closure / timing race).
+export const generateWordSet = (
+  count: number,
+  wpmTarget: number,
+  wordStats: Record<string, WordStats>,
+  allWords: string[]
+): string[] => {
+  // getTopWordsForTest already filters out graduated words, so pass the full stats.
+  const selectedWords = getTopWordsForTest(wordStats, wpmTarget);
+
+  let wordsForTest: string[];
+  if (selectedWords.length === 0) {
+    // No scored-but-not-graduated words yet: fall back to untyped words.
+    const unscoredWords = allWords.filter(word => {
+      const stats = wordStats[word];
+      return !stats || !stats.lastScore;
+    });
+    wordsForTest = shuffleArray(unscoredWords).slice(0, count);
+  } else {
+    const frequencies = generateFrequencyDistribution(count, selectedWords);
+    const repeatedWords: string[] = [];
+    Object.entries(frequencies).forEach(([word, freq]) => {
+      for (let i = 0; i < freq; i++) {
+        repeatedWords.push(word);
+      }
+    });
+    wordsForTest = shuffleArray(repeatedWords);
+  }
+
+  if (wordsForTest.length === 0) {
+    // Last resort: any word that hasn't graduated.
+    const nonGraduatedWords = allWords.filter(word => {
+      const stats = wordStats[word];
+      return !stats || !isGraduated(stats.lastScore, wpmTarget);
+    });
+    wordsForTest = shuffleArray(nonGraduatedWords).slice(0, count);
+  }
+
+  return wordsForTest;
 };
