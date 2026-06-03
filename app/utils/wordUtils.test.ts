@@ -7,7 +7,9 @@ import {
   calculateGraduationThreshold,
   isGraduated,
   getTopWordsForTest,
+  computeWordElapsedTime,
   WordStats,
+  KeystrokeEvent,
 } from './wordUtils';
 
 describe('generateFrequencyDistribution', () => {
@@ -269,6 +271,77 @@ describe('wordUtils', () => {
       expect(result[1]).toBe('bad');
       expect(result[2]).toBe('unscored');
     });
+  });
+});
+
+describe('computeWordElapsedTime', () => {
+  test('returns elapsed time from first to last event', () => {
+    const events: KeystrokeEvent[] = [
+      { key: 'h', timestamp: 100 },
+      { key: 'i', timestamp: 180 },
+      { key: ' ', timestamp: 250 },
+    ];
+    expect(computeWordElapsedTime(events)).toBe(150); // 250 - 100
+  });
+
+  test('regression: excludes pre-word pause (switch cost not baked into elapsed time)', () => {
+    // Previous word completed at t=0; user pauses 500ms (switch cost) before typing.
+    // Old behaviour: elapsed = completionTs - prevWordSpaceTs = 700 - 0 = 700
+    // New behaviour: events start at first character, so elapsed = 700 - 500 = 200
+    const prevWordSpaceTimestamp = 0;
+    const firstCharTimestamp = 500; // 500ms inter-word gap
+    const completionTimestamp = 700;
+
+    const events: KeystrokeEvent[] = [
+      { key: 'h', timestamp: firstCharTimestamp },
+      { key: 'i', timestamp: 600 },
+      { key: ' ', timestamp: completionTimestamp },
+    ];
+    const elapsed = computeWordElapsedTime(events);
+
+    expect(elapsed).toBe(200);
+    // Confirm it excludes the 500ms switch cost that the old approach would include
+    expect(elapsed).toBeLessThan(completionTimestamp - prevWordSpaceTimestamp);
+  });
+
+  test('fast short word can graduate with first-keystroke timing but not with switch-cost-inflated timing', () => {
+    const wpmTarget = 60;
+    const threshold = calculateGraduationThreshold(wpmTarget); // 200 ms/char
+
+    // "hi" typed at 80ms/char: elapsed = 160ms, score = 80ms/char < threshold → graduates
+    const events: KeystrokeEvent[] = [
+      { key: 'h', timestamp: 0 },
+      { key: 'i', timestamp: 80 },
+      { key: ' ', timestamp: 160 },
+    ];
+    const elapsed = computeWordElapsedTime(events);
+    const score = calculateNormalizedScore(elapsed, 'hi'.length);
+
+    expect(score).toBeLessThan(threshold);
+    expect(isGraduated(score, wpmTarget)).toBe(true);
+
+    // With old switch-cost-inflated timing (500ms inter-word gap added):
+    const oldElapsed = elapsed + 500;
+    const oldScore = calculateNormalizedScore(oldElapsed, 'hi'.length);
+    expect(isGraduated(oldScore, wpmTarget)).toBe(false);
+  });
+
+  test('returns 0 for empty event sequence', () => {
+    expect(computeWordElapsedTime([])).toBe(0);
+  });
+
+  test('returns 0 for single event', () => {
+    expect(computeWordElapsedTime([{ key: 'a', timestamp: 100 }])).toBe(0);
+  });
+
+  test('first-char timer stands when user backspaces to empty and retypes', () => {
+    // Original first char at t=100; user backspaces and retypes, completing at t=400.
+    // Elapsed is measured from first char (t=100), not from the retype.
+    const events: KeystrokeEvent[] = [
+      { key: 'h', timestamp: 100 }, // original first char — this timestamp is what we keep
+      { key: ' ', timestamp: 400 }, // completion
+    ];
+    expect(computeWordElapsedTime(events)).toBe(300); // 400 - 100
   });
 });
 

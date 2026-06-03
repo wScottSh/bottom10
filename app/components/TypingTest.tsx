@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
-import { generateWordSet, calculateNormalizedScore, WordStats } from '../utils/wordUtils';
+import { generateWordSet, calculateNormalizedScore, computeWordElapsedTime, KeystrokeEvent, WordStats } from '../utils/wordUtils';
 import { loadWordStats, saveWordStats, loadWpmTarget, resetAppData } from '../utils/persistence';
 
 function createInitialWordStats(): Record<string, WordStats> {
@@ -26,7 +26,9 @@ export default function TypingTest() {
   const [correctWords, setCorrectWords] = useState<number>(0);
   const [startTime, setStartTime] = useState<number>(Date.now());
   const [testEnded, setTestEnded] = useState<boolean>(false);
-  const [typedWordStartTime, setTypedWordStartTime] = useState<number>(Date.now());
+  // Ref tracks the timestamp of the first character of the current word.
+  // Set on first char (empty → 1 char), never reset on backspace, cleared on word advance.
+  const wordFirstKeystrokeRef = useRef<number | null>(null);
   const [typedWordsData, setTypedWordsData] = useState<
     { word: string; time: number; errors: number }[]
   >([]);
@@ -73,7 +75,7 @@ export default function TypingTest() {
     setTypedWordsData([]);
     setTestEnded(false);
     setStartTime(Date.now());
-    setTypedWordStartTime(Date.now());
+    wordFirstKeystrokeRef.current = null;
     setTestStarted(false);
     setHasError(false);
     setIsWordErrored(false);
@@ -99,15 +101,22 @@ export default function TypingTest() {
 
     if (value.endsWith(' ')) {
       if (value.trim() === currentWord) {
+        const completionTimestamp = Date.now();
+        const firstTimestamp = wordFirstKeystrokeRef.current;
+        const events: KeystrokeEvent[] = firstTimestamp !== null
+          ? [{ key: '_', timestamp: firstTimestamp }, { key: ' ', timestamp: completionTimestamp }]
+          : [];
+        const elapsed = computeWordElapsedTime(events);
+
         setTypedWordsData(prev => [
           ...prev,
-          { 
-            word: currentWord, 
-            time: Date.now() - typedWordStartTime, 
-            errors: isWordErrored ? 1 : 0 
+          {
+            word: currentWord,
+            time: elapsed,
+            errors: isWordErrored ? 1 : 0
           }
         ]);
-        
+
         if (currentWordIndex + 1 === words.length) {
           finishTest();
         } else {
@@ -115,7 +124,7 @@ export default function TypingTest() {
           setCurrentWordIndex(currentWordIndex + 1);
           setCurrentInput('');
           setCurrentCharIndex(0);
-          setTypedWordStartTime(Date.now());
+          wordFirstKeystrokeRef.current = null; // reset for next word; timer starts on its first char
           setHasError(false);
           setIsWordErrored(false);
         }
@@ -125,7 +134,12 @@ export default function TypingTest() {
 
     if (!testStarted && value.length === 1) {
       setTestStarted(true);
-      setTypedWordStartTime(Date.now());
+    }
+
+    // Start word timer on first character of each word (applies uniformly to every word).
+    // currentInput is '' whenever a new word begins; we only set once (never on backspace retype).
+    if (currentInput.length === 0 && value.length === 1 && wordFirstKeystrokeRef.current === null) {
+      wordFirstKeystrokeRef.current = Date.now();
     }
 
     if (value.length < currentInput.length) {

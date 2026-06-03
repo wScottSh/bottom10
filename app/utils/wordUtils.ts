@@ -9,6 +9,19 @@ export const calculateNormalizedScore = (avgTime: number, wordLength: number): n
   return avgTime / wordLength;
 };
 
+export interface KeystrokeEvent {
+  key: string;
+  timestamp: number;
+}
+
+// Returns elapsed time from first to last keystroke event.
+// Pass events starting at the word's first character so the inter-word
+// switch cost is excluded by construction (not part of the sequence).
+export const computeWordElapsedTime = (events: KeystrokeEvent[]): number => {
+  if (events.length < 2) return 0;
+  return events[events.length - 1].timestamp - events[0].timestamp;
+};
+
 export const calculateGraduationThreshold = (wpm: number): number => {
   const totalTimeInMilliseconds = 60000;
   const avgCharsPerWord = 5;
