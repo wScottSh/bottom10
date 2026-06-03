@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
-import { generateWordSet, calculateNormalizedScore, computeWordElapsedTime, KeystrokeEvent, WordStats } from '../utils/wordUtils';
+import { generateWordSet, calculateNormalizedScore, computeWordElapsedTime, WordStats } from '../utils/wordUtils';
 import { loadWordStats, saveWordStats, loadWpmTarget, resetAppData } from '../utils/persistence';
 
 function createInitialWordStats(): Record<string, WordStats> {
@@ -101,12 +101,7 @@ export default function TypingTest() {
 
     if (value.endsWith(' ')) {
       if (value.trim() === currentWord) {
-        const completionTimestamp = Date.now();
-        const firstTimestamp = wordFirstKeystrokeRef.current;
-        const events: KeystrokeEvent[] = firstTimestamp !== null
-          ? [{ key: '_', timestamp: firstTimestamp }, { key: ' ', timestamp: completionTimestamp }]
-          : [];
-        const elapsed = computeWordElapsedTime(events);
+        const elapsed = computeWordElapsedTime(wordFirstKeystrokeRef.current, Date.now());
 
         setTypedWordsData(prev => [
           ...prev,

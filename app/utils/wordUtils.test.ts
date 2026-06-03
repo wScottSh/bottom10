@@ -9,7 +9,6 @@ import {
   getTopWordsForTest,
   computeWordElapsedTime,
   WordStats,
-  KeystrokeEvent,
 } from './wordUtils';
 
 describe('generateFrequencyDistribution', () => {
@@ -275,29 +274,19 @@ describe('wordUtils', () => {
 });
 
 describe('computeWordElapsedTime', () => {
-  test('returns elapsed time from first to last event', () => {
-    const events: KeystrokeEvent[] = [
-      { key: 'h', timestamp: 100 },
-      { key: 'i', timestamp: 180 },
-      { key: ' ', timestamp: 250 },
-    ];
-    expect(computeWordElapsedTime(events)).toBe(150); // 250 - 100
+  test('returns completion time minus the first-keystroke timestamp', () => {
+    expect(computeWordElapsedTime(100, 250)).toBe(150); // 250 - 100
   });
 
   test('regression: excludes pre-word pause (switch cost not baked into elapsed time)', () => {
     // Previous word completed at t=0; user pauses 500ms (switch cost) before typing.
     // Old behaviour: elapsed = completionTs - prevWordSpaceTs = 700 - 0 = 700
-    // New behaviour: events start at first character, so elapsed = 700 - 500 = 200
+    // New behaviour: measured from the first character, so elapsed = 700 - 500 = 200
     const prevWordSpaceTimestamp = 0;
     const firstCharTimestamp = 500; // 500ms inter-word gap
     const completionTimestamp = 700;
 
-    const events: KeystrokeEvent[] = [
-      { key: 'h', timestamp: firstCharTimestamp },
-      { key: 'i', timestamp: 600 },
-      { key: ' ', timestamp: completionTimestamp },
-    ];
-    const elapsed = computeWordElapsedTime(events);
+    const elapsed = computeWordElapsedTime(firstCharTimestamp, completionTimestamp);
 
     expect(elapsed).toBe(200);
     // Confirm it excludes the 500ms switch cost that the old approach would include
@@ -309,12 +298,7 @@ describe('computeWordElapsedTime', () => {
     const threshold = calculateGraduationThreshold(wpmTarget); // 200 ms/char
 
     // "hi" typed at 80ms/char: elapsed = 160ms, score = 80ms/char < threshold → graduates
-    const events: KeystrokeEvent[] = [
-      { key: 'h', timestamp: 0 },
-      { key: 'i', timestamp: 80 },
-      { key: ' ', timestamp: 160 },
-    ];
-    const elapsed = computeWordElapsedTime(events);
+    const elapsed = computeWordElapsedTime(0, 160);
     const score = calculateNormalizedScore(elapsed, 'hi'.length);
 
     expect(score).toBeLessThan(threshold);
@@ -326,22 +310,14 @@ describe('computeWordElapsedTime', () => {
     expect(isGraduated(oldScore, wpmTarget)).toBe(false);
   });
 
-  test('returns 0 for empty event sequence', () => {
-    expect(computeWordElapsedTime([])).toBe(0);
-  });
-
-  test('returns 0 for single event', () => {
-    expect(computeWordElapsedTime([{ key: 'a', timestamp: 100 }])).toBe(0);
+  test('returns 0 when there is no recorded first keystroke', () => {
+    expect(computeWordElapsedTime(null, 100)).toBe(0);
   });
 
   test('first-char timer stands when user backspaces to empty and retypes', () => {
     // Original first char at t=100; user backspaces and retypes, completing at t=400.
-    // Elapsed is measured from first char (t=100), not from the retype.
-    const events: KeystrokeEvent[] = [
-      { key: 'h', timestamp: 100 }, // original first char — this timestamp is what we keep
-      { key: ' ', timestamp: 400 }, // completion
-    ];
-    expect(computeWordElapsedTime(events)).toBe(300); // 400 - 100
+    // Elapsed is measured from the first char (t=100), not from the retype.
+    expect(computeWordElapsedTime(100, 400)).toBe(300); // 400 - 100
   });
 });
 
