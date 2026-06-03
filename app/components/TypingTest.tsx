@@ -7,14 +7,16 @@ import GraduatedSidebar from './GraduatedSidebar';
 import { WordStats, getTopWordsForTest, calculateGraduationThreshold, isGraduated } from '../utils/wordUtils';
 import { loadWordStats, saveWordStats, loadWpmTarget, resetAppData } from '../utils/persistence';
 
+function createInitialWordStats(): Record<string, WordStats> {
+  return wordList.reduce((acc, word) => ({
+    ...acc,
+    [word]: { word, time: 0, attempts: 0, lastScore: 0 }
+  }), {} as Record<string, WordStats>);
+}
+
 export default function TypingTest() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [globalWordStats, setGlobalWordStats] = useState(() => {
-    return wordList.reduce((acc, word) => ({
-      ...acc,
-      [word]: { word, time: 0, attempts: 0, lastScore: 0 }
-    }), {});
-  });
+  const [globalWordStats, setGlobalWordStats] = useState(createInitialWordStats);
 
   const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(true);
   const [allWords, setAllWords] = useState<string[]>(wordList);
@@ -61,10 +63,10 @@ export default function TypingTest() {
   }, []);
 
   const generateWordSet = (count: number, wpmTarget: number, statsOverride?: Record<string, WordStats>) => {
-    const stats = statsOverride ?? globalWordStats;
+    const sourceStats = statsOverride ?? globalWordStats;
     const graduationThreshold = calculateGraduationThreshold(wpmTarget);
 
-    const nonGraduatedWordStats = Object.entries(stats)
+    const nonGraduatedWordStats = Object.entries(sourceStats)
       .filter(([word, stats]) => {
         const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
         return !isGrad;
@@ -76,7 +78,7 @@ export default function TypingTest() {
     let wordsForTest: string[];
     if (selectedWords.length === 0) {
       const unscoredWords = wordList.filter(word => {
-        const wordStat = stats[word];
+        const wordStat = sourceStats[word];
         const isUnscored = !wordStat?.lastScore;
         const isGrad = wordStat?.lastScore > 0 && wordStat?.lastScore < graduationThreshold;
         return isUnscored && !isGrad;
@@ -95,7 +97,7 @@ export default function TypingTest() {
 
     if (wordsForTest.length === 0) {
       const fallbackWords = wordList.filter(word => {
-        const wordStat = stats[word];
+        const wordStat = sourceStats[word];
         const isGrad = wordStat?.lastScore > 0 && wordStat?.lastScore < graduationThreshold;
         return !isGrad;
       });
@@ -105,22 +107,26 @@ export default function TypingTest() {
     return wordsForTest;
   };
 
+  const applyTestState = (newWords: string[]) => {
+    setWords(newWords);
+    setCurrentWordIndex(0);
+    setCorrectWords(0);
+    setCurrentInput('');
+    setTypedWordsData([]);
+    setTestEnded(false);
+    setStartTime(Date.now());
+    setTypedWordStartTime(Date.now());
+    setTestStarted(false);
+    setHasError(false);
+    setIsWordErrored(false);
+    inputRef.current?.focus();
+  };
+
   const startNewTest = () => {
     const wpmTarget = loadWpmTarget();
     const newWords = generateWordSet(wordCount, wpmTarget);
     if (newWords.length > 0) {
-      setWords(newWords);
-      setCurrentWordIndex(0);
-      setCorrectWords(0);
-      setCurrentInput('');
-      setTypedWordsData([]);
-      setTestEnded(false);
-      setStartTime(Date.now());
-      setTypedWordStartTime(Date.now());
-      setTestStarted(false);
-      setHasError(false);
-      setIsWordErrored(false);
-      inputRef.current?.focus();
+      applyTestState(newWords);
     }
   };
 
@@ -237,20 +243,7 @@ export default function TypingTest() {
       const wpmTarget = loadWpmTarget();
       const newWords = generateWordSet(wordCount, wpmTarget);
       if (newWords.length > 0) {
-        setTimeout(() => {
-          setWords(newWords);
-          setCurrentWordIndex(0);
-          setCorrectWords(0);
-          setCurrentInput('');
-          setTypedWordsData([]);
-          setTestEnded(false);
-          setStartTime(Date.now());
-          setTypedWordStartTime(Date.now());
-          setTestStarted(false);
-          setHasError(false);
-          setIsWordErrored(false);
-          inputRef.current?.focus();
-        }, 50);
+        setTimeout(() => applyTestState(newWords), 50);
       }
     }
   }, [testEnded, globalWordStats]);
@@ -305,26 +298,12 @@ export default function TypingTest() {
 
   const handleResetProgress = () => {
     resetAppData();
-    const freshStats: Record<string, WordStats> = wordList.reduce((acc, word) => ({
-      ...acc,
-      [word]: { word, time: 0, attempts: 0, lastScore: 0 }
-    }), {} as Record<string, WordStats>);
+    const freshStats = createInitialWordStats();
     setGlobalWordStats(freshStats);
     const wpmTarget = loadWpmTarget();
     const newWords = generateWordSet(wordCount, wpmTarget, freshStats);
     if (newWords.length > 0) {
-      setWords(newWords);
-      setCurrentWordIndex(0);
-      setCorrectWords(0);
-      setCurrentInput('');
-      setTypedWordsData([]);
-      setTestEnded(false);
-      setStartTime(Date.now());
-      setTypedWordStartTime(Date.now());
-      setTestStarted(false);
-      setHasError(false);
-      setIsWordErrored(false);
-      inputRef.current?.focus();
+      applyTestState(newWords);
     }
   };
 
