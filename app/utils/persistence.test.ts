@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadWordStats, saveWordStats, loadWpmTarget, saveWpmTarget, CURRENT_VERSION, loadAppData, createInMemoryStorage as createMockStorage } from './persistence';
+import { loadWordStats, saveWordStats, loadWpmTarget, saveWpmTarget, CURRENT_VERSION, loadAppData, resetAppData, createInMemoryStorage as createMockStorage } from './persistence';
 
 test('loadWordStats returns empty object for missing data', () => {
   const storage = createMockStorage();
@@ -40,6 +40,24 @@ test('loadAppData is safe on corrupt JSON', () => {
   const storage = createMockStorage({ 'bottom10_data': 'not-json-at-all{' });
   const data = loadAppData(storage);
   assert.strictEqual(data.version, CURRENT_VERSION);
+  assert.deepStrictEqual(data.wordStats, {});
+  assert.strictEqual(data.wpmTarget, 40);
+});
+
+test('resetAppData clears wordStats and resets wpmTarget to default', () => {
+  const storage = createMockStorage();
+  saveWordStats({ 'the': { word: 'the', time: 100, attempts: 5, lastScore: 20 } }, storage);
+  saveWpmTarget(80, storage);
+  resetAppData(storage);
+  const data = loadAppData(storage);
+  assert.deepStrictEqual(data.wordStats, {});
+  assert.strictEqual(data.wpmTarget, 40);
+});
+
+test('resetAppData works on empty storage without error', () => {
+  const storage = createMockStorage();
+  assert.doesNotThrow(() => resetAppData(storage));
+  const data = loadAppData(storage);
   assert.deepStrictEqual(data.wordStats, {});
   assert.strictEqual(data.wpmTarget, 40);
 });

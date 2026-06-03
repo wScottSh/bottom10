@@ -5,7 +5,7 @@ import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
 import { WordStats, getTopWordsForTest, calculateGraduationThreshold, isGraduated } from '../utils/wordUtils';
-import { loadWordStats, saveWordStats, loadWpmTarget } from '../utils/persistence';
+import { loadWordStats, saveWordStats, loadWpmTarget, resetAppData } from '../utils/persistence';
 
 export default function TypingTest() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -60,10 +60,11 @@ export default function TypingTest() {
     }
   }, []);
 
-  const generateWordSet = (count: number, wpmTarget: number) => {
+  const generateWordSet = (count: number, wpmTarget: number, statsOverride?: Record<string, WordStats>) => {
+    const stats = statsOverride ?? globalWordStats;
     const graduationThreshold = calculateGraduationThreshold(wpmTarget);
 
-    const nonGraduatedWordStats = Object.entries(globalWordStats)
+    const nonGraduatedWordStats = Object.entries(stats)
       .filter(([word, stats]) => {
         const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
         return !isGrad;
@@ -75,9 +76,9 @@ export default function TypingTest() {
     let wordsForTest: string[];
     if (selectedWords.length === 0) {
       const unscoredWords = wordList.filter(word => {
-        const stats = globalWordStats[word];
-        const isUnscored = !stats.lastScore;
-        const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
+        const wordStat = stats[word];
+        const isUnscored = !wordStat?.lastScore;
+        const isGrad = wordStat?.lastScore > 0 && wordStat?.lastScore < graduationThreshold;
         return isUnscored && !isGrad;
       });
       wordsForTest = shuffleArray(unscoredWords).slice(0, count);
@@ -94,8 +95,8 @@ export default function TypingTest() {
 
     if (wordsForTest.length === 0) {
       const fallbackWords = wordList.filter(word => {
-        const stats = globalWordStats[word];
-        const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
+        const wordStat = stats[word];
+        const isGrad = wordStat?.lastScore > 0 && wordStat?.lastScore < graduationThreshold;
         return !isGrad;
       });
       wordsForTest = shuffleArray(fallbackWords).slice(0, count);
@@ -302,6 +303,31 @@ export default function TypingTest() {
     startNewTest();
   };
 
+  const handleResetProgress = () => {
+    resetAppData();
+    const freshStats: Record<string, WordStats> = wordList.reduce((acc, word) => ({
+      ...acc,
+      [word]: { word, time: 0, attempts: 0, lastScore: 0 }
+    }), {} as Record<string, WordStats>);
+    setGlobalWordStats(freshStats);
+    const wpmTarget = loadWpmTarget();
+    const newWords = generateWordSet(wordCount, wpmTarget, freshStats);
+    if (newWords.length > 0) {
+      setWords(newWords);
+      setCurrentWordIndex(0);
+      setCorrectWords(0);
+      setCurrentInput('');
+      setTypedWordsData([]);
+      setTestEnded(false);
+      setStartTime(Date.now());
+      setTypedWordStartTime(Date.now());
+      setTestStarted(false);
+      setHasError(false);
+      setIsWordErrored(false);
+      inputRef.current?.focus();
+    }
+  };
+
   return (
     <>
       {renderHeader()}
@@ -343,6 +369,12 @@ export default function TypingTest() {
                   className="ml-2 w-20 p-1 bg-gray-700 text-white rounded"
                 />
               </label>
+              <button
+                onClick={handleResetProgress}
+                className="mt-2 px-3 py-1 bg-red-700 hover:bg-red-600 text-white rounded text-sm"
+              >
+                Reset progress
+              </button>
             </div>
           )}
           <div 
