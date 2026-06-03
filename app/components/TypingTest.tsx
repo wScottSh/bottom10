@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
-import { WordStats, getTopWordsForTest, calculateGraduationThreshold, isGraduated } from '../utils/wordUtils';
+import { WordStats, generateWordSet, isGraduated } from '../utils/wordUtils';
 import { loadWordStats, saveWordStats, loadWpmTarget } from '../utils/persistence';
 
 export default function TypingTest() {
@@ -60,53 +60,10 @@ export default function TypingTest() {
     }
   }, []);
 
-  const generateWordSet = (count: number, wpmTarget: number) => {
-    const graduationThreshold = calculateGraduationThreshold(wpmTarget);
-
-    const nonGraduatedWordStats = Object.entries(globalWordStats)
-      .filter(([word, stats]) => {
-        const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
-        return !isGrad;
-      })
-      .reduce((acc, [word, stats]) => ({ ...acc, [word]: stats }), {} as Record<string, WordStats>);
-
-    const selectedWords = getTopWordsForTest(nonGraduatedWordStats, wpmTarget);
-
-    let wordsForTest: string[];
-    if (selectedWords.length === 0) {
-      const unscoredWords = wordList.filter(word => {
-        const stats = globalWordStats[word];
-        const isUnscored = !stats.lastScore;
-        const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
-        return isUnscored && !isGrad;
-      });
-      wordsForTest = shuffleArray(unscoredWords).slice(0, count);
-    } else {
-      const frequencies = generateFrequencyDistribution(count, selectedWords);
-      const repeatedWords: string[] = [];
-      Object.entries(frequencies).forEach(([word, freq]) => {
-        for (let i = 0; i < freq; i++) {
-          repeatedWords.push(word);
-        }
-      });
-      wordsForTest = shuffleArray(repeatedWords);
-    }
-
-    if (wordsForTest.length === 0) {
-      const fallbackWords = wordList.filter(word => {
-        const stats = globalWordStats[word];
-        const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
-        return !isGrad;
-      });
-      wordsForTest = shuffleArray(fallbackWords).slice(0, count);
-    }
-
-    return wordsForTest;
-  };
 
   const startNewTest = () => {
     const wpmTarget = loadWpmTarget();
-    const newWords = generateWordSet(wordCount, wpmTarget);
+    const newWords = generateWordSet(wordCount, wpmTarget, globalWordStats, allWords);
     if (newWords.length > 0) {
       setWords(newWords);
       setCurrentWordIndex(0);
@@ -123,37 +80,6 @@ export default function TypingTest() {
     }
   };
 
-  const generateFrequencyDistribution = (wordCount: number, bottomWords: string[]) => {
-    // Ensure at least 25% of words are the worst performer
-    const worstWordCount = Math.max(Math.floor(wordCount * 0.25), 1);
-    const remainingCount = wordCount - worstWordCount;
-    
-    // Calculate decreasing frequencies for remaining words
-    const frequencies: Record<string, number> = {};
-    let remainingSlots = remainingCount;
-    
-    bottomWords.forEach((word, index) => {
-      if (index === 0) {
-        // Worst word gets 25%
-        frequencies[word] = worstWordCount;
-      } else if (index === bottomWords.length - 1) {
-        // Last word gets minimum 2 occurrences
-        frequencies[word] = 2;
-      } else {
-        // Calculate decreasing frequency for middle words
-        const portion = Math.floor((remainingSlots - 2) * (bottomWords.length - index) / 
-          (bottomWords.length * (bottomWords.length - 1) / 2));
-        frequencies[word] = Math.max(portion, 2);
-        remainingSlots -= portion;
-      }
-    });
-
-    return frequencies;
-  };
-
-  const shuffleArray = (array: string[]) => {
-    return [...array].sort(() => Math.random() - 0.5);
-  };
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (testEnded) return;
@@ -225,34 +151,28 @@ export default function TypingTest() {
   };
 
   const finishTest = () => {
-    setTestEnded(true);
     const updatedStats = calculateNewStats();
-    setGlobalWordStats(updatedStats);
-    saveWordStats(updatedStats);
-  };
+    const wpmTarget = loadWpmTarget();
+    const newWords = generateWordSet(wordCount, wpmTarget, updatedStats, allWords);
 
-  useEffect(() => {
-    if (testEnded) {
-      const wpmTarget = loadWpmTarget();
-      const newWords = generateWordSet(wordCount, wpmTarget);
-      if (newWords.length > 0) {
-        setTimeout(() => {
-          setWords(newWords);
-          setCurrentWordIndex(0);
-          setCorrectWords(0);
-          setCurrentInput('');
-          setTypedWordsData([]);
-          setTestEnded(false);
-          setStartTime(Date.now());
-          setTypedWordStartTime(Date.now());
-          setTestStarted(false);
-          setHasError(false);
-          setIsWordErrored(false);
-          inputRef.current?.focus();
-        }, 50);
-      }
+    saveWordStats(updatedStats);
+    setGlobalWordStats(updatedStats);
+
+    if (newWords.length > 0) {
+      setWords(newWords);
+      setCurrentWordIndex(0);
+      setCorrectWords(0);
+      setCurrentInput('');
+      setTypedWordsData([]);
+      setTestEnded(false);
+      setStartTime(Date.now());
+      setTypedWordStartTime(Date.now());
+      setTestStarted(false);
+      setHasError(false);
+      setIsWordErrored(false);
+      inputRef.current?.focus();
     }
-  }, [testEnded, globalWordStats]);
+  };
 
   const calculateNewStats = () => {
     const updatedStats = { ...globalWordStats };

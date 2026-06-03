@@ -32,3 +32,81 @@ export const getTopWordsForTest = (wordStats: Record<string, WordStats>, wpm: nu
 
   return sortedCandidates.slice(0, 10).map(entry => entry.word);
 };
+
+export const shuffleArray = (array: string[]): string[] => {
+  return [...array].sort(() => Math.random() - 0.5);
+};
+
+export const generateFrequencyDistribution = (wordCount: number, bottomWords: string[]): Record<string, number> => {
+  const worstWordCount = Math.max(Math.floor(wordCount * 0.25), 1);
+  const remainingCount = wordCount - worstWordCount;
+  const frequencies: Record<string, number> = {};
+  let remainingSlots = remainingCount;
+
+  bottomWords.forEach((word, index) => {
+    if (index === 0) {
+      frequencies[word] = worstWordCount;
+    } else if (index === bottomWords.length - 1) {
+      frequencies[word] = 2;
+    } else {
+      const portion = Math.floor(
+        ((remainingSlots - 2) * (bottomWords.length - index)) /
+        ((bottomWords.length * (bottomWords.length - 1)) / 2)
+      );
+      frequencies[word] = Math.max(portion, 2);
+      remainingSlots -= portion;
+    }
+  });
+
+  return frequencies;
+};
+
+export const generateWordSet = (
+  count: number,
+  wpmTarget: number,
+  wordStats: Record<string, WordStats>,
+  allWords: string[]
+): string[] => {
+  const graduationThreshold = calculateGraduationThreshold(wpmTarget);
+
+  const nonGraduatedWordStats = Object.entries(wordStats)
+    .filter(([, stats]) => {
+      const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
+      return !isGrad;
+    })
+    .reduce((acc, [word, stats]) => ({ ...acc, [word]: stats }), {} as Record<string, WordStats>);
+
+  const selectedWords = getTopWordsForTest(nonGraduatedWordStats, wpmTarget);
+
+  let wordsForTest: string[];
+  if (selectedWords.length === 0) {
+    const unscoredWords = allWords.filter(word => {
+      const stats = wordStats[word];
+      if (!stats) return true;
+      const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
+      return !stats.lastScore && !isGrad;
+    });
+    wordsForTest = shuffleArray(unscoredWords).slice(0, count);
+  } else {
+    const frequencies = generateFrequencyDistribution(count, selectedWords);
+    const repeatedWords: string[] = [];
+    Object.entries(frequencies).forEach(([word, freq]) => {
+      for (let i = 0; i < freq; i++) {
+        repeatedWords.push(word);
+      }
+    });
+    wordsForTest = shuffleArray(repeatedWords);
+  }
+
+  if (wordsForTest.length === 0) {
+    const fallbackWords = allWords.filter(word => {
+      const stats = wordStats[word];
+      if (!stats) return true;
+      const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
+      return !isGrad;
+    });
+    wordsForTest = shuffleArray(fallbackWords).slice(0, count);
+  }
+
+  return wordsForTest;
+};
