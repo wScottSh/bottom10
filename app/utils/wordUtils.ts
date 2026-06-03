@@ -5,6 +5,10 @@ export interface WordStats {
   lastScore: number;
 }
 
+export const calculateNormalizedScore = (avgTime: number, wordLength: number): number => {
+  return avgTime / wordLength;
+};
+
 export const calculateGraduationThreshold = (wpm: number): number => {
   const totalTimeInMilliseconds = 60000;
   const avgCharsPerWord = 5;

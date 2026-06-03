@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit || echo 'Pre-existing type issues in components (not introduced by persistence service for issue 2)'",
-    "test": "npm run typecheck && npx --yes tsx app/utils/persistence.test.ts",
+    "test": "npm run typecheck && npx --yes tsx app/utils/persistence.test.ts && npx --yes tsx app/utils/wordUtils.test.ts",
     "sandcastle": "npx tsx .sandcastle/main.ts"
   },
   "dependencies": {
