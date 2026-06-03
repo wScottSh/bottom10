@@ -4,40 +4,23 @@ import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
-import { WordStats, getTopWordsForTest, calculateGraduationThreshold, isGraduated } from '../utils/wordUtils';
-
-interface WordData {
-  totalTime: number;
-  attempts: number;
-  errors: number;
-}
+import { WordStats, getTopWordsForTest, calculateGraduationThreshold } from '../utils/wordUtils';
 
 export default function TypingTest() {
-  // Add interface for word performance data
-  interface WordPerformance {
-    word: string;
-    time: number;
-    normalizedScore: number;
-    errors: number;
-  }
-
   // Add new state for sidebar and global word stats
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);  // Changed to true
-  const [globalWordStats, setGlobalWordStats] = useState(() => {
-    // Initialize with empty stats for all words
+  const [globalWordStats, setGlobalWordStats] = useState<Record<string, WordStats>>(() => {
     return wordList.reduce((acc, word) => ({
       ...acc,
       [word]: { word, time: 0, attempts: 0, lastScore: 0 }
-    }), {});
+    }), {} as Record<string, WordStats>);
   });
 
   const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(true);
-  const [allWords, setAllWords] = useState<string[]>(wordList);
   const [words, setWords] = useState<string[]>([]);
   const [currentInput, setCurrentInput] = useState('');
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [correctWords, setCorrectWords] = useState<number>(0);
-  const [startTime, setStartTime] = useState<number>(Date.now());
   const [testEnded, setTestEnded] = useState<boolean>(false);
   const [typedWordStartTime, setTypedWordStartTime] = useState<number>(Date.now());
   const [typedWordsData, setTypedWordsData] = useState<
@@ -51,6 +34,7 @@ export default function TypingTest() {
   const [isWordErrored, setIsWordErrored] = useState(false);  // Track if word has had an error
   const [testStarted, setTestStarted] = useState(false);
   const [wordCount, setWordCount] = useState<number>(50);
+  const [wpmTarget, setWpmTarget] = useState<number>(40);
 
   useEffect(() => {
     startNewTest();
@@ -70,10 +54,13 @@ export default function TypingTest() {
   }, [testEnded]); // Only re-add listener if testEnded changes
 
   useEffect(() => {
-    // Load saved stats on mount
     const savedStats = localStorage.getItem('wordStats');
     if (savedStats) {
       setGlobalWordStats(JSON.parse(savedStats));
+    }
+    const savedWpm = localStorage.getItem('wpmTarget');
+    if (savedWpm) {
+      setWpmTarget(parseInt(savedWpm));
     }
   }, []);
 
@@ -87,7 +74,7 @@ export default function TypingTest() {
 
     // Filter out graduated words from globalWordStats
     const nonGraduatedWordStats = Object.entries(globalWordStats)
-      .filter(([word, stats]) => {
+      .filter(([, stats]) => {
         const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
         return !isGrad;
       })
@@ -140,7 +127,6 @@ export default function TypingTest() {
       setCurrentInput('');
       setTypedWordsData([]);
       setTestEnded(false);
-      setStartTime(Date.now());
       setTypedWordStartTime(Date.now());
       setTestStarted(false);
       setHasError(false);
@@ -175,22 +161,6 @@ export default function TypingTest() {
     });
 
     return frequencies;
-  };
-
-  const aggregateWordStats = () => {
-    const stats: Record<string, { totalTime: number, totalChars: number, attempts: number, normalizedScore: number }> = {};
-    
-    typedWordsData.forEach(({ word, time }) => {
-      if (!stats[word]) {
-        stats[word] = { totalTime: 0, totalChars: 0, attempts: 0, normalizedScore: 0 };
-      }
-      stats[word].totalTime += time;
-      stats[word].totalChars += word.length;
-      stats[word].attempts += 1;
-      stats[word].normalizedScore = stats[word].totalTime / stats[word].totalChars / stats[word].attempts;
-    });
-
-    return stats;
   };
 
   const shuffleArray = (array: string[]) => {
@@ -298,7 +268,6 @@ export default function TypingTest() {
           setCurrentInput('');
           setTypedWordsData([]);
           setTestEnded(false);
-          setStartTime(Date.now());
           setTypedWordStartTime(Date.now());
           setTestStarted(false);
           setHasError(false);
@@ -338,37 +307,6 @@ export default function TypingTest() {
     return updatedStats;
   };
 
-  const normalizeWordTime = (time: number, wordLength: number): number => {
-    return time / wordLength; // Time per character
-  };
-
-  const prepareNextTest = () => {
-    // No need to read from localStorage since we're using globalWordStats
-    const bottomWords = getWorstNonGraduatedWords();
-    setAllWords(bottomWords.length > 0 ? bottomWords : wordList);
-    const newWords = generateWordSet(wordCount);
-    setWords(newWords);
-    setCurrentWordIndex(0);
-    setCorrectWords(0);
-    setCurrentInput('');
-    setTypedWordsData([]);
-    setTestEnded(false);
-    setStartTime(Date.now());
-    setTypedWordStartTime(Date.now());
-    setTestStarted(false);
-  };
-
-  const getWordStats = (): WordPerformance[] => {
-    return typedWordsData
-      .map(({ word, time, errors }) => ({
-        word,
-        time,
-        normalizedScore: normalizeWordTime(time, word.length),
-        errors
-      }))
-      .sort((a, b) => b.normalizedScore - a.normalizedScore);
-  };
-
   const toggleSettings = () => {
     setShowSettings(!showSettings);
   };
@@ -388,6 +326,7 @@ export default function TypingTest() {
   );
 
   const handleWpmChange = (newWpm: number) => {
+    setWpmTarget(newWpm);
     startNewTest();
   };
 
@@ -404,7 +343,7 @@ export default function TypingTest() {
         isOpen={isGraduatedSidebarOpen}
         wordStats={globalWordStats}
         toggleSidebar={() => setIsGraduatedSidebarOpen(!isGraduatedSidebarOpen)}
-        wpmTarget={parseInt(localStorage.getItem('wpmTarget') || '40')}
+        wpmTarget={wpmTarget}
       />
       <div className={`flex-1 min-h-screen flex items-center transition-all duration-300 
         ${isSidebarOpen ? 'ml-64' : ''} 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, KeyboardEvent } from 'react';
-import { getTopWordsForTest, calculateGraduationThreshold, WordStats, isGraduated } from '../utils/wordUtils';
+import { WordStats, isGraduated } from '../utils/wordUtils';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange }: SidebarProps) {
   const [wpmTarget, setWpmTarget] = useState<number>(() => {
+    if (typeof window === 'undefined') return 40;
     const saved = localStorage.getItem('wpmTarget');
     return saved ? parseInt(saved) : 40;
   });
