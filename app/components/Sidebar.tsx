@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, KeyboardEvent } from 'react';
-import { getTopWordsForTest, calculateGraduationThreshold, WordStats, isGraduated } from '../utils/wordUtils';
+import { WordStats, isGraduated } from '../utils/wordUtils';
 import { loadWpmTarget, saveWpmTarget } from '../utils/persistence';
 
 interface SidebarProps {
@@ -62,7 +62,7 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange 
       >
         {isOpen ? '←' : '→'}
       </button>
-      
+
       <div className="h-full overflow-y-auto p-4">
         {/* WPM Target UI */}
         <div className="flex justify-between items-center mb-4">
@@ -77,7 +77,7 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange 
                 className="w-12 p-1 bg-transparent text-[#e2b714] border-b border-[#e2b714] focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 autoFocus
               />
-              <button 
+              <button
                 onClick={handleWpmSubmit}
                 className="text-xs text-[#e2b714] hover:text-white px-1"
               >
