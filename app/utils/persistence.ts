@@ -137,6 +137,13 @@ export function saveAppData(partial: Partial<StoredData>, storage?: StorageLike)
   } catch {}
 }
 
+export function resetAppData(storage?: StorageLike): void {
+  const safeStorage = getSafeStorage(storage);
+  try {
+    safeStorage.setItem(STORAGE_KEY, JSON.stringify(getDefaultData()));
+  } catch {}
+}
+
 export function loadWordStats(storage?: StorageLike): Record<string, WordStats> {
   return loadAppData(storage).wordStats;
 }

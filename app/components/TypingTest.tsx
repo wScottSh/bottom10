@@ -4,17 +4,19 @@ import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
-import { generateWordSet, calculateNormalizedScore } from '../utils/wordUtils';
-import { loadWordStats, saveWordStats, loadWpmTarget } from '../utils/persistence';
+import { generateWordSet, calculateNormalizedScore, WordStats } from '../utils/wordUtils';
+import { loadWordStats, saveWordStats, loadWpmTarget, resetAppData } from '../utils/persistence';
+
+function createInitialWordStats(): Record<string, WordStats> {
+  return wordList.reduce((acc, word) => ({
+    ...acc,
+    [word]: { word, time: 0, attempts: 0, lastScore: 0 }
+  }), {} as Record<string, WordStats>);
+}
 
 export default function TypingTest() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [globalWordStats, setGlobalWordStats] = useState(() => {
-    return wordList.reduce((acc, word) => ({
-      ...acc,
-      [word]: { word, time: 0, attempts: 0, lastScore: 0 }
-    }), {});
-  });
+  const [globalWordStats, setGlobalWordStats] = useState(createInitialWordStats);
 
   const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(true);
   const [allWords, setAllWords] = useState<string[]>(wordList);
@@ -211,6 +213,14 @@ export default function TypingTest() {
     startNewTest();
   };
 
+  const handleResetProgress = () => {
+    resetAppData();
+    const freshStats = createInitialWordStats();
+    setGlobalWordStats(freshStats);
+    const wpmTarget = loadWpmTarget();
+    startTestWithWords(generateWordSet(wordCount, wpmTarget, freshStats, allWords));
+  };
+
   return (
     <>
       {renderHeader()}
@@ -252,6 +262,12 @@ export default function TypingTest() {
                   className="ml-2 w-20 p-1 bg-gray-700 text-white rounded"
                 />
               </label>
+              <button
+                onClick={handleResetProgress}
+                className="mt-2 px-3 py-1 bg-red-700 hover:bg-red-600 text-white rounded text-sm"
+              >
+                Reset progress
+              </button>
             </div>
           )}
           <div 
