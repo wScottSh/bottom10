@@ -1,11 +1,10 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect } from 'vitest';
 import { loadWordStats, saveWordStats, loadWpmTarget, saveWpmTarget, CURRENT_VERSION, loadAppData, createInMemoryStorage as createMockStorage } from './persistence';
 
 test('loadWordStats returns empty object for missing data', () => {
   const storage = createMockStorage();
   const stats = loadWordStats(storage);
-  assert.deepStrictEqual(stats, {});
+  expect(stats).toEqual({});
 });
 
 test('saveWordStats and loadWordStats roundtrip valid data', () => {
@@ -15,33 +14,32 @@ test('saveWordStats and loadWordStats roundtrip valid data', () => {
   };
   saveWordStats(testStats, storage);
   const loaded = loadWordStats(storage);
-  assert.deepStrictEqual(loaded, testStats);
-  // also check stored data has version
+  expect(loaded).toEqual(testStats);
   const raw = storage.getItem('bottom10_data');
-  assert.ok(raw);
+  expect(raw).toBeTruthy();
   const parsed = JSON.parse(raw!);
-  assert.strictEqual(parsed.version, CURRENT_VERSION);
-  assert.deepStrictEqual(parsed.wordStats, testStats);
+  expect(parsed.version).toBe(CURRENT_VERSION);
+  expect(parsed.wordStats).toEqual(testStats);
 });
 
 test('loadWpmTarget returns default 40 when missing', () => {
   const storage = createMockStorage();
   const wpm = loadWpmTarget(storage);
-  assert.strictEqual(wpm, 40);
+  expect(wpm).toBe(40);
 });
 
 test('saveWpmTarget and load roundtrips', () => {
   const storage = createMockStorage();
   saveWpmTarget(65, storage);
-  assert.strictEqual(loadWpmTarget(storage), 65);
+  expect(loadWpmTarget(storage)).toBe(65);
 });
 
 test('loadAppData is safe on corrupt JSON', () => {
   const storage = createMockStorage({ 'bottom10_data': 'not-json-at-all{' });
   const data = loadAppData(storage);
-  assert.strictEqual(data.version, CURRENT_VERSION);
-  assert.deepStrictEqual(data.wordStats, {});
-  assert.strictEqual(data.wpmTarget, 40);
+  expect(data.version).toBe(CURRENT_VERSION);
+  expect(data.wordStats).toEqual({});
+  expect(data.wpmTarget).toBe(40);
 });
 
 test('handles legacy data migration from wordStats/wpmTarget keys', () => {
@@ -50,10 +48,9 @@ test('handles legacy data migration from wordStats/wpmTarget keys', () => {
     'wpmTarget': '55'
   });
   const data = loadAppData(legacyStore);
-  assert.strictEqual(data.version, CURRENT_VERSION);
-  assert.ok(data.wordStats['hello']);
-  assert.strictEqual(data.wpmTarget, 55);
-  // after load, should have migrated to new key
+  expect(data.version).toBe(CURRENT_VERSION);
+  expect(data.wordStats['hello']).toBeTruthy();
+  expect(data.wpmTarget).toBe(55);
   const newRaw = legacyStore.getItem('bottom10_data');
-  assert.ok(newRaw);
+  expect(newRaw).toBeTruthy();
 });

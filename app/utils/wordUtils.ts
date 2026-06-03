@@ -32,3 +32,67 @@ export const getTopWordsForTest = (wordStats: Record<string, WordStats>, wpm: nu
 
   return sortedCandidates.slice(0, 10).map(entry => entry.word);
 };
+
+export const generateFrequencyDistribution = (wordCount: number, bottomWords: string[]): Record<string, number> => {
+  const worstWordCount = Math.max(Math.floor(wordCount * 0.25), 1);
+  const remainingCount = wordCount - worstWordCount;
+
+  const frequencies: Record<string, number> = {};
+  let remainingSlots = remainingCount;
+
+  bottomWords.forEach((word, index) => {
+    if (index === 0) {
+      frequencies[word] = worstWordCount;
+    } else if (index === bottomWords.length - 1) {
+      frequencies[word] = 2;
+    } else {
+      const portion = Math.floor((remainingSlots - 2) * (bottomWords.length - index) /
+        (bottomWords.length * (bottomWords.length - 1) / 2));
+      frequencies[word] = Math.max(portion, 2);
+      remainingSlots -= portion;
+    }
+  });
+
+  return frequencies;
+};
+
+export const selectWordsForTest = (
+  wordStats: Record<string, WordStats>,
+  wpmTarget: number,
+  count: number,
+  allWords: string[]
+): string[] => {
+  const graduationThreshold = calculateGraduationThreshold(wpmTarget);
+
+  const nonGraduatedWordStats = Object.entries(wordStats)
+    .filter(([, stats]) => !(stats.lastScore > 0 && stats.lastScore < graduationThreshold))
+    .reduce((acc, [word, stats]) => ({ ...acc, [word]: stats }), {} as Record<string, WordStats>);
+
+  const selectedWords = getTopWordsForTest(nonGraduatedWordStats, wpmTarget);
+
+  if (selectedWords.length === 0) {
+    return allWords.filter(word => {
+      const stats = wordStats[word];
+      const isUnscored = !stats?.lastScore;
+      const isGrad = stats?.lastScore > 0 && stats?.lastScore < graduationThreshold;
+      return isUnscored && !isGrad;
+    });
+  }
+
+  const frequencies = generateFrequencyDistribution(count, selectedWords);
+  const repeatedWords: string[] = [];
+  Object.entries(frequencies).forEach(([word, freq]) => {
+    for (let i = 0; i < freq; i++) {
+      repeatedWords.push(word);
+    }
+  });
+
+  if (repeatedWords.length === 0) {
+    return allWords.filter(word => {
+      const stats = wordStats[word];
+      return !(stats?.lastScore > 0 && stats?.lastScore < graduationThreshold);
+    });
+  }
+
+  return repeatedWords;
+};
