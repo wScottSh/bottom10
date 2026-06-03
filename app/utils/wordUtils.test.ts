@@ -54,13 +54,6 @@ describe('generateFrequencyDistribution', () => {
 });
 
 describe('selectWordsForTest', () => {
-  const makeStats = (lastScore: number): WordStats => ({
-    word: '',
-    time: 0,
-    attempts: 1,
-    lastScore,
-  });
-
   const allWords = ['the', 'of', 'and', 'to', 'in', 'a', 'is', 'that', 'for', 'it',
     'as', 'was', 'with', 'be', 'by'];
 
@@ -79,7 +72,6 @@ describe('selectWordsForTest', () => {
   test('returns repeated words list when scored words are present', () => {
     // Build stats with 3 scored words above graduation threshold (not graduated)
     const wpm = 40;
-    const threshold = 60000 / (wpm * 5); // 300ms
     const wordStats: Record<string, WordStats> = {};
     for (const w of allWords) {
       wordStats[w] = { word: w, time: 0, attempts: 0, lastScore: 0 };
@@ -99,12 +91,11 @@ describe('selectWordsForTest', () => {
 
   test('excludes graduated words from selection', () => {
     const wpm = 40;
-    const threshold = 60000 / (wpm * 5); // 300ms
     const wordStats: Record<string, WordStats> = {};
     for (const w of allWords) {
       wordStats[w] = { word: w, time: 0, attempts: 0, lastScore: 0 };
     }
-    // Graduated words: score > 0 and < threshold
+    // Graduated words: score > 0 and < threshold (300ms at 40 wpm)
     wordStats['the'] = { word: 'the', time: 100, attempts: 1, lastScore: 100 };
     wordStats['of'] = { word: 'of', time: 200, attempts: 1, lastScore: 200 };
     // Non-graduated (above threshold)

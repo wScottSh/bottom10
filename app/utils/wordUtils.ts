@@ -18,7 +18,7 @@ export const isGraduated = (score: number, wpm: number): boolean => {
 export const getTopWordsForTest = (wordStats: Record<string, WordStats>, wpm: number) => {
   // Select non-graduated words, then sort worst (highest score) first; unscored (score 0) come after scored words
   const candidates = Object.entries(wordStats)
-    .filter(([word, stats]) => !isGraduated(stats.lastScore, wpm))
+    .filter(([, stats]) => !isGraduated(stats.lastScore, wpm))
     .map(([word, stats]) => ({
       word,
       score: stats.lastScore || 0
@@ -62,21 +62,12 @@ export const selectWordsForTest = (
   count: number,
   allWords: string[]
 ): string[] => {
-  const graduationThreshold = calculateGraduationThreshold(wpmTarget);
-
-  const nonGraduatedWordStats = Object.entries(wordStats)
-    .filter(([, stats]) => !(stats.lastScore > 0 && stats.lastScore < graduationThreshold))
-    .reduce((acc, [word, stats]) => ({ ...acc, [word]: stats }), {} as Record<string, WordStats>);
-
-  const selectedWords = getTopWordsForTest(nonGraduatedWordStats, wpmTarget);
+  // getTopWordsForTest already excludes graduated words, so pass wordStats directly.
+  const selectedWords = getTopWordsForTest(wordStats, wpmTarget);
 
   if (selectedWords.length === 0) {
-    return allWords.filter(word => {
-      const stats = wordStats[word];
-      const isUnscored = !stats?.lastScore;
-      const isGrad = stats?.lastScore > 0 && stats?.lastScore < graduationThreshold;
-      return isUnscored && !isGrad;
-    });
+    // No scored, non-graduated words yet — fall back to the unscored words.
+    return allWords.filter(word => !wordStats[word]?.lastScore);
   }
 
   const frequencies = generateFrequencyDistribution(count, selectedWords);
@@ -88,10 +79,7 @@ export const selectWordsForTest = (
   });
 
   if (repeatedWords.length === 0) {
-    return allWords.filter(word => {
-      const stats = wordStats[word];
-      return !(stats?.lastScore > 0 && stats?.lastScore < graduationThreshold);
-    });
+    return allWords.filter(word => !isGraduated(wordStats[word]?.lastScore ?? 0, wpmTarget));
   }
 
   return repeatedWords;
