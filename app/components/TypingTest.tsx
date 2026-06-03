@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
-import { selectWordsForTest } from '../utils/wordUtils';
+import { selectWordsForTest, calculateNormalizedScore } from '../utils/wordUtils';
 import { loadWordStats, saveWordStats, loadWpmTarget } from '../utils/persistence';
 
 export default function TypingTest() {
@@ -202,7 +202,7 @@ export default function TypingTest() {
 
     Object.entries(wordGroups).forEach(([word, { totalTime, count }]) => {
       const avgTime = totalTime / count;
-      const normalizedScore = avgTime / word.length;
+      const normalizedScore = calculateNormalizedScore(avgTime, word.length);
       
       updatedStats[word] = {
         ...updatedStats[word],

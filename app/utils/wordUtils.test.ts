@@ -2,6 +2,9 @@ import { describe, test, expect } from 'vitest';
 import {
   generateFrequencyDistribution,
   selectWordsForTest,
+  calculateNormalizedScore,
+  calculateGraduationThreshold,
+  isGraduated,
   WordStats,
 } from './wordUtils';
 
@@ -114,5 +117,40 @@ describe('selectWordsForTest', () => {
     }
     const result = selectWordsForTest(wordStats, 40, 10, allWords);
     expect(Array.isArray(result)).toBe(true);
+  });
+});
+
+describe('normalized scoring seam', () => {
+  test('graduation threshold equals ms-per-char at target WPM', () => {
+    // At 60 WPM, avgCharsPerWord=5: 60000 / (60 * 5) = 200 ms/char
+    expect(calculateGraduationThreshold(60)).toBe(200);
+    // At 40 WPM: 60000 / (40 * 5) = 300 ms/char
+    expect(calculateGraduationThreshold(40)).toBe(300);
+  });
+
+  test('short and long words typed at equal cadence receive equal normalized scores', () => {
+    const cadenceMs = 100; // 100 ms per character
+    const shortWord = 'hi';  // length 2
+    const longWord = 'hello'; // length 5
+
+    const shortScore = calculateNormalizedScore(cadenceMs * shortWord.length, shortWord.length);
+    const longScore = calculateNormalizedScore(cadenceMs * longWord.length, longWord.length);
+
+    expect(shortScore).toBe(cadenceMs);
+    expect(longScore).toBe(cadenceMs);
+    expect(shortScore).toBe(longScore);
+  });
+
+  test('fast short word scores below graduation threshold and graduates', () => {
+    // At 60 WPM, threshold = 200 ms/char
+    const wpmTarget = 60;
+    const threshold = calculateGraduationThreshold(wpmTarget);
+
+    // "hi" typed at 80 ms/char => total time 160ms
+    const fastShortWordTime = 80 * 'hi'.length;
+    const score = calculateNormalizedScore(fastShortWordTime, 'hi'.length);
+
+    expect(score).toBeLessThan(threshold);
+    expect(isGraduated(score, wpmTarget)).toBe(true);
   });
 });
