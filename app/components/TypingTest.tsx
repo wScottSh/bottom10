@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
-import { WordStats, generateWordSet, isGraduated } from '../utils/wordUtils';
+import { generateWordSet } from '../utils/wordUtils';
 import { loadWordStats, saveWordStats, loadWpmTarget } from '../utils/persistence';
 
 export default function TypingTest() {
@@ -61,23 +61,26 @@ export default function TypingTest() {
   }, []);
 
 
+  // Load a freshly generated word set and reset all per-test state.
+  const startTestWithWords = (newWords: string[]) => {
+    if (newWords.length === 0) return;
+    setWords(newWords);
+    setCurrentWordIndex(0);
+    setCorrectWords(0);
+    setCurrentInput('');
+    setTypedWordsData([]);
+    setTestEnded(false);
+    setStartTime(Date.now());
+    setTypedWordStartTime(Date.now());
+    setTestStarted(false);
+    setHasError(false);
+    setIsWordErrored(false);
+    inputRef.current?.focus();
+  };
+
   const startNewTest = () => {
     const wpmTarget = loadWpmTarget();
-    const newWords = generateWordSet(wordCount, wpmTarget, globalWordStats, allWords);
-    if (newWords.length > 0) {
-      setWords(newWords);
-      setCurrentWordIndex(0);
-      setCorrectWords(0);
-      setCurrentInput('');
-      setTypedWordsData([]);
-      setTestEnded(false);
-      setStartTime(Date.now());
-      setTypedWordStartTime(Date.now());
-      setTestStarted(false);
-      setHasError(false);
-      setIsWordErrored(false);
-      inputRef.current?.focus();
-    }
+    startTestWithWords(generateWordSet(wordCount, wpmTarget, globalWordStats, allWords));
   };
 
 
@@ -157,21 +160,7 @@ export default function TypingTest() {
 
     saveWordStats(updatedStats);
     setGlobalWordStats(updatedStats);
-
-    if (newWords.length > 0) {
-      setWords(newWords);
-      setCurrentWordIndex(0);
-      setCorrectWords(0);
-      setCurrentInput('');
-      setTypedWordsData([]);
-      setTestEnded(false);
-      setStartTime(Date.now());
-      setTypedWordStartTime(Date.now());
-      setTestStarted(false);
-      setHasError(false);
-      setIsWordErrored(false);
-      inputRef.current?.focus();
-    }
+    startTestWithWords(newWords);
   };
 
   const calculateNewStats = () => {

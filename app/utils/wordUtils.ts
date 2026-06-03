@@ -67,24 +67,15 @@ export const generateWordSet = (
   wordStats: Record<string, WordStats>,
   allWords: string[]
 ): string[] => {
-  const graduationThreshold = calculateGraduationThreshold(wpmTarget);
-
-  const nonGraduatedWordStats = Object.entries(wordStats)
-    .filter(([, stats]) => {
-      const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
-      return !isGrad;
-    })
-    .reduce((acc, [word, stats]) => ({ ...acc, [word]: stats }), {} as Record<string, WordStats>);
-
-  const selectedWords = getTopWordsForTest(nonGraduatedWordStats, wpmTarget);
+  // getTopWordsForTest already filters out graduated words, so pass the full stats.
+  const selectedWords = getTopWordsForTest(wordStats, wpmTarget);
 
   let wordsForTest: string[];
   if (selectedWords.length === 0) {
+    // No scored-but-not-graduated words yet: fall back to untyped words.
     const unscoredWords = allWords.filter(word => {
       const stats = wordStats[word];
-      if (!stats) return true;
-      const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
-      return !stats.lastScore && !isGrad;
+      return !stats || !stats.lastScore;
     });
     wordsForTest = shuffleArray(unscoredWords).slice(0, count);
   } else {
@@ -99,13 +90,12 @@ export const generateWordSet = (
   }
 
   if (wordsForTest.length === 0) {
-    const fallbackWords = allWords.filter(word => {
+    // Last resort: any word that hasn't graduated.
+    const nonGraduatedWords = allWords.filter(word => {
       const stats = wordStats[word];
-      if (!stats) return true;
-      const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
-      return !isGrad;
+      return !stats || !isGraduated(stats.lastScore, wpmTarget);
     });
-    wordsForTest = shuffleArray(fallbackWords).slice(0, count);
+    wordsForTest = shuffleArray(nonGraduatedWords).slice(0, count);
   }
 
   return wordsForTest;
