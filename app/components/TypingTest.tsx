@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
-import { WordStats, getTopWordsForTest, calculateGraduationThreshold } from '../utils/wordUtils';
+import { WordStats, getTopWordsForTest, isGraduated } from '../utils/wordUtils';
 
 export default function TypingTest() {
   // Add new state for sidebar and global word stats
@@ -20,7 +20,6 @@ export default function TypingTest() {
   const [words, setWords] = useState<string[]>([]);
   const [currentInput, setCurrentInput] = useState('');
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
-  const [correctWords, setCorrectWords] = useState<number>(0);
   const [testEnded, setTestEnded] = useState<boolean>(false);
   const [typedWordStartTime, setTypedWordStartTime] = useState<number>(Date.now());
   const [typedWordsData, setTypedWordsData] = useState<
@@ -28,7 +27,6 @@ export default function TypingTest() {
   >([]);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const wordsContainerRef = useRef<HTMLDivElement>(null);
   const [currentCharIndex, setCurrentCharIndex] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [isWordErrored, setIsWordErrored] = useState(false);  // Track if word has had an error
@@ -64,20 +62,10 @@ export default function TypingTest() {
     }
   }, []);
 
-  // Remove these functions as they're now in wordUtils:
-  // - calculateGraduationThreshold
-  // - getTopWordsForTest
-
   const generateWordSet = (count: number, wpmTarget: number) => {
-    // Get graduation threshold
-    const graduationThreshold = calculateGraduationThreshold(wpmTarget);
-
     // Filter out graduated words from globalWordStats
     const nonGraduatedWordStats = Object.entries(globalWordStats)
-      .filter(([, stats]) => {
-        const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
-        return !isGrad;
-      })
+      .filter(([, stats]) => !isGraduated(stats.lastScore, wpmTarget))
       .reduce((acc, [word, stats]) => ({ ...acc, [word]: stats }), {} as Record<string, WordStats>);
 
     // Get the worst performing non-graduated words
@@ -88,9 +76,7 @@ export default function TypingTest() {
     if (selectedWords.length === 0) {
       const unscoredWords = wordList.filter(word => {
         const stats = globalWordStats[word];
-        const isUnscored = !stats.lastScore;
-        const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
-        return isUnscored && !isGrad;
+        return !stats.lastScore && !isGraduated(stats.lastScore, wpmTarget);
       });
       wordsForTest = shuffleArray(unscoredWords).slice(0, count);
     } else {
@@ -108,8 +94,7 @@ export default function TypingTest() {
     if (wordsForTest.length === 0) {
       const fallbackWords = wordList.filter(word => {
         const stats = globalWordStats[word];
-        const isGrad = stats.lastScore > 0 && stats.lastScore < graduationThreshold;
-        return !isGrad;
+        return !isGraduated(stats.lastScore, wpmTarget);
       });
       wordsForTest = shuffleArray(fallbackWords).slice(0, count);
     }
@@ -123,7 +108,6 @@ export default function TypingTest() {
     if (newWords.length > 0) {
       setWords(newWords);
       setCurrentWordIndex(0);
-      setCorrectWords(0);
       setCurrentInput('');
       setTypedWordsData([]);
       setTestEnded(false);
@@ -194,7 +178,6 @@ export default function TypingTest() {
         if (currentWordIndex + 1 === words.length) {
           finishTest();
         } else {
-          setCorrectWords(correctWords + 1);
           setCurrentWordIndex(currentWordIndex + 1);
           setCurrentInput('');
           setCurrentCharIndex(0);
@@ -264,7 +247,6 @@ export default function TypingTest() {
         setTimeout(() => {
           setWords(newWords);
           setCurrentWordIndex(0);
-          setCorrectWords(0);
           setCurrentInput('');
           setTypedWordsData([]);
           setTestEnded(false);
@@ -373,8 +355,7 @@ export default function TypingTest() {
               </label>
             </div>
           )}
-          <div 
-            ref={wordsContainerRef}
+          <div
             className="w-full px-8 relative text-2xl min-h-[120px] leading-relaxed"
           >
             {words.map((word, wordIndex) => (
