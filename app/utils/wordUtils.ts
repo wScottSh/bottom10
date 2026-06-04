@@ -142,6 +142,39 @@ export const buildConvexDistribution = (
   return result;
 };
 
+// Minimum reps each unscored word contributes to a generated test.
+const UNSCORED_WORD_REPS = 2;
+
+// Distributes `count` reps across the selected words: scored words get a convex
+// score-weighted share (worst words most), unscored words get a flat floor each.
+const buildWordDistribution = (
+  selectedWords: string[],
+  wordStats: Record<string, WordStats>,
+  count: number
+): Record<string, number> => {
+  const isScored = (word: string) => (wordStats[word]?.lastScore ?? 0) > 0;
+  const scoredWords = selectedWords.filter(isScored);
+  const unscoredWords = selectedWords.filter(word => !isScored(word));
+
+  const scoredBudget = count - unscoredWords.length * UNSCORED_WORD_REPS;
+  const scoredEntries = scoredWords.map(word => ({ word, score: wordStats[word].lastScore }));
+
+  const dist: Record<string, number> = scoredEntries.length > 0
+    ? buildConvexDistribution(Math.max(scoredBudget, scoredEntries.length), scoredEntries)
+    : {};
+  for (const word of unscoredWords) dist[word] = UNSCORED_WORD_REPS;
+  return dist;
+};
+
+// Expands a { word: repCount } map into a flat list with each word repeated.
+const expandDistribution = (dist: Record<string, number>): string[] => {
+  const repeatedWords: string[] = [];
+  Object.entries(dist).forEach(([word, freq]) => {
+    for (let i = 0; i < freq; i++) repeatedWords.push(word);
+  });
+  return repeatedWords;
+};
+
 export const generateFrequencyDistribution = (wordCount: number, bottomWords: string[]): Record<string, number> => {
   const worstWordCount = Math.max(Math.floor(wordCount * 0.25), 1);
   const remainingCount = wordCount - worstWordCount;
@@ -177,25 +210,12 @@ export const selectWordsForTest = (
     return allWords.filter(word => !wordStats[word]?.lastScore);
   }
 
-  const scoredWords = selectedWords.filter(w => (wordStats[w]?.lastScore ?? 0) > 0);
-  const unscoredWords = selectedWords.filter(w => !((wordStats[w]?.lastScore ?? 0) > 0));
-
-  if (scoredWords.length === 0) {
+  const hasScoredWord = selectedWords.some(word => (wordStats[word]?.lastScore ?? 0) > 0);
+  if (!hasScoredWord) {
     return allWords.filter(word => !isGraduated(wordStats[word]?.lastScore ?? 0, wpmTarget));
   }
 
-  const FLOOR = 2;
-  const unscoredBudget = unscoredWords.length * FLOOR;
-  const scoredBudget = count - unscoredBudget;
-  const scoredEntries = scoredWords.map(w => ({ word: w, score: wordStats[w].lastScore }));
-
-  const dist = buildConvexDistribution(Math.max(scoredBudget, scoredEntries.length), scoredEntries);
-  for (const w of unscoredWords) dist[w] = FLOOR;
-
-  const repeatedWords: string[] = [];
-  Object.entries(dist).forEach(([word, freq]) => {
-    for (let i = 0; i < freq; i++) repeatedWords.push(word);
-  });
+  const repeatedWords = expandDistribution(buildWordDistribution(selectedWords, wordStats, count));
 
   return repeatedWords.length === 0
     ? allWords.filter(word => !isGraduated(wordStats[word]?.lastScore ?? 0, wpmTarget))
@@ -222,23 +242,7 @@ export const generateWordSet = (
     });
     wordsForTest = shuffleArray(unscoredWords).slice(0, count);
   } else {
-    const scoredWords = selectedWords.filter(w => (wordStats[w]?.lastScore ?? 0) > 0);
-    const unscoredWords = selectedWords.filter(w => !((wordStats[w]?.lastScore ?? 0) > 0));
-
-    const FLOOR = 2;
-    const unscoredBudget = unscoredWords.length * FLOOR;
-    const scoredBudget = count - unscoredBudget;
-    const scoredEntries = scoredWords.map(w => ({ word: w, score: wordStats[w].lastScore }));
-
-    const dist = scoredEntries.length > 0
-      ? buildConvexDistribution(Math.max(scoredBudget, scoredEntries.length), scoredEntries)
-      : {};
-    for (const w of unscoredWords) dist[w] = FLOOR;
-
-    const repeatedWords: string[] = [];
-    Object.entries(dist).forEach(([word, freq]) => {
-      for (let i = 0; i < freq; i++) repeatedWords.push(word);
-    });
+    const repeatedWords = expandDistribution(buildWordDistribution(selectedWords, wordStats, count));
     wordsForTest = shuffleArray(repeatedWords);
   }
 
