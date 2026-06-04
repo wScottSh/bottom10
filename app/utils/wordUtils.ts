@@ -76,6 +76,10 @@ export const updateGraduationCounter = (stats: WordStats, wpm: number): WordStat
   };
 };
 
+// Number of distinct words in a test's working set: the worst non-graduated
+// words are repeated across the test rather than drawing many unique words.
+export const WORKING_SET_SIZE = 10;
+
 export const getTopWordsForTest = (wordStats: Record<string, WordStats>) => {
   // Select non-graduated words, then sort worst (highest score) first; unscored (score 0) come after scored words
   const candidates = Object.entries(wordStats)
@@ -91,7 +95,7 @@ export const getTopWordsForTest = (wordStats: Record<string, WordStats>) => {
     return b.score - a.score;  // Higher scores (worse) first
   });
 
-  return sortedCandidates.slice(0, 10).map(entry => entry.word);
+  return sortedCandidates.slice(0, WORKING_SET_SIZE).map(entry => entry.word);
 };
 
 // Returns the working set: worst non-graduated words up to maxSize, with remaining
@@ -101,7 +105,7 @@ export const getTopWordsForTest = (wordStats: Record<string, WordStats>) => {
 export const selectWorkingSet = (
   wordStats: Record<string, WordStats>,
   allWords: string[],
-  maxSize: number = 10
+  maxSize: number = WORKING_SET_SIZE
 ): string[] => {
   const scored = Object.entries(wordStats).filter(([, stats]) => stats.lastScore > 0);
 
@@ -297,10 +301,17 @@ export const generateWordSet = (
 
   let wordsForTest: string[];
   if (selectedWords.length === 0 || !hasScoredWord) {
-    // No scored words yet (first session or all-unscored working set): draw
-    // frequency-ordered untouched words to fill exactly count slots.
+    // No scored words yet (first session or all-unscored working set): take the
+    // top frequency-ordered words and repeat them to fill count slots. This mirrors
+    // the scored path (a working set repeated across count) rather than pulling
+    // count unique words on the very first test. Leave empty when there are no
+    // unscored words so the last-resort fallback below takes over.
     const unscoredWords = filterUnscored(allWords, wordStats);
-    wordsForTest = shuffleArray(unscoredWords.slice(0, count));
+    const initialSet = unscoredWords.slice(0, WORKING_SET_SIZE);
+    const repeatedInitial = initialSet.length === 0
+      ? []
+      : Array.from({ length: count }, (_, i) => initialSet[i % initialSet.length]);
+    wordsForTest = shuffleArray(repeatedInitial);
   } else {
     const repeatedWords = expandDistribution(buildWordDistribution(selectedWords, wordStats, count));
     wordsForTest = shuffleArray(repeatedWords);

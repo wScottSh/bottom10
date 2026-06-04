@@ -681,6 +681,40 @@ describe('generateWordSet', () => {
       expect(allWords).toContain(w);
     }
   });
+
+  test('first test uses only top 10 frequency-ordered words, repeated to fill count', () => {
+    // When all words are unscored and there are more than 10, only the top 10
+    // frequency-ordered words should appear (repeated) — not 50 unique words.
+    const allWords = Array.from({ length: 60 }, (_, i) => `word${i}`);
+    const stats = makeStats(allWords);  // all 60 words unscored
+
+    const result = generateWordSet(50, stats, allWords);
+    expect(result.length).toBe(50);
+
+    const uniqueWords = new Set(result);
+    expect(uniqueWords.size).toBeLessThanOrEqual(10);
+
+    const top10 = new Set(allWords.slice(0, 10));
+    for (const w of uniqueWords) {
+      expect(top10.has(w)).toBe(true);
+    }
+  });
+
+  test('first test with no stats uses only top 10 frequency-ordered words, repeated to fill count', () => {
+    // Edge case: empty wordStats (truly first ever session, no pre-populated stats).
+    const allWords = Array.from({ length: 60 }, (_, i) => `word${i}`);
+
+    const result = generateWordSet(50, {}, allWords);
+    expect(result.length).toBe(50);
+
+    const uniqueWords = new Set(result);
+    expect(uniqueWords.size).toBeLessThanOrEqual(10);
+
+    const top10 = new Set(allWords.slice(0, 10));
+    for (const w of uniqueWords) {
+      expect(top10.has(w)).toBe(true);
+    }
+  });
 });
 
 describe('buildConvexDistribution', () => {
