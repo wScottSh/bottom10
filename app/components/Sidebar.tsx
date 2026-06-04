@@ -49,7 +49,7 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange 
       if (!a.stats.lastScore && b.stats.lastScore) return 1;
       if (a.stats.lastScore && !b.stats.lastScore) return -1;
       if (!a.stats.lastScore && !b.stats.lastScore) return 0;
-      return b.stats.lastScore - a.stats.lastScore;
+      return a.stats.lastScore - b.stats.lastScore;  // Ascending: lowest score (fastest) first
     });
 
   return (
