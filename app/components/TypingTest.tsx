@@ -82,7 +82,6 @@ export default function TypingTest() {
     }
   }, []);
 
-
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (testEnded) return;
 
