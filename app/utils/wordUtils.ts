@@ -226,6 +226,13 @@ const filterNonGraduated = (
     return !stats || !isGraduated(stats);
   });
 
+// All words that have never been scored (no stats, or a lastScore of 0).
+const filterUnscored = (
+  allWords: string[],
+  wordStats: Record<string, WordStats>
+): string[] =>
+  allWords.filter(word => !wordStats[word]?.lastScore);
+
 export const selectWordsForTest = (
   wordStats: Record<string, WordStats>,
   count: number,
@@ -234,7 +241,7 @@ export const selectWordsForTest = (
   const selectedWords = getTopWordsForTest(wordStats);
 
   if (selectedWords.length === 0) {
-    return allWords.filter(word => !wordStats[word]?.lastScore);
+    return filterUnscored(allWords, wordStats);
   }
 
   const hasScoredWord = selectedWords.some(word => (wordStats[word]?.lastScore ?? 0) > 0);
@@ -266,10 +273,7 @@ export const generateWordSet = (
   if (selectedWords.length === 0 || !hasScoredWord) {
     // No scored words yet (first session or all-unscored working set): draw
     // frequency-ordered untouched words to fill exactly count slots.
-    const unscoredWords = allWords.filter(word => {
-      const stats = wordStats[word];
-      return !stats || !stats.lastScore;
-    });
+    const unscoredWords = filterUnscored(allWords, wordStats);
     wordsForTest = shuffleArray(unscoredWords.slice(0, count));
   } else {
     const repeatedWords = expandDistribution(buildWordDistribution(selectedWords, wordStats, count));
