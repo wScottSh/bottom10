@@ -59,21 +59,19 @@ export const selectWorkingSet = (
   allWords: string[],
   maxSize: number = 10
 ): string[] => {
-  // Active: scored (lastScore > 0) and not yet graduated
-  const active = Object.entries(wordStats)
-    .filter(([, stats]) => stats.lastScore > 0 && !isGraduated(stats.lastScore, wpmTarget))
-    .sort((a, b) => b[1].lastScore - a[1].lastScore) // worst first
+  const scored = Object.entries(wordStats).filter(([, stats]) => stats.lastScore > 0);
+
+  // Active: scored words not yet graduated, worst (highest score) first
+  const active = scored
+    .filter(([, stats]) => !isGraduated(stats.lastScore, wpmTarget))
+    .sort((a, b) => b[1].lastScore - a[1].lastScore)
     .map(([word]) => word)
     .slice(0, maxSize);
 
   if (active.length >= maxSize) return active;
 
   // Fill remaining slots from untouched words (never scored) in frequency order
-  const scoredWords = new Set(
-    Object.entries(wordStats)
-      .filter(([, stats]) => stats.lastScore > 0)
-      .map(([word]) => word)
-  );
+  const scoredWords = new Set(scored.map(([word]) => word));
   const slotsLeft = maxSize - active.length;
   const untouched = allWords.filter(w => !scoredWords.has(w)).slice(0, slotsLeft);
 
