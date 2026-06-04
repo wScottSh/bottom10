@@ -298,9 +298,16 @@ export const generateWordSet = (
   let wordsForTest: string[];
   if (selectedWords.length === 0 || !hasScoredWord) {
     // No scored words yet (first session or all-unscored working set): draw
-    // frequency-ordered untouched words to fill exactly count slots.
+    // only the top 10 frequency-ordered words and repeat them to fill count slots.
+    // This mirrors the scored path (a 10-word working set repeated across count)
+    // rather than pulling 50 unique words on the very first test.
     const unscoredWords = filterUnscored(allWords, wordStats);
-    wordsForTest = shuffleArray(unscoredWords.slice(0, count));
+    const initialSet = unscoredWords.slice(0, 10);
+    const repeatedInitial: string[] = [];
+    for (let i = 0; i < count; i++) {
+      repeatedInitial.push(initialSet[i % initialSet.length]);
+    }
+    wordsForTest = shuffleArray(repeatedInitial);
   } else {
     const repeatedWords = expandDistribution(buildWordDistribution(selectedWords, wordStats, count));
     wordsForTest = shuffleArray(repeatedWords);
