@@ -22,6 +22,32 @@ export const computeWordElapsedTime = (
   return completionTimestamp - firstKeystrokeTimestamp;
 };
 
+export interface KeystrokeEvent {
+  key: string;
+  timestamp: number;
+}
+
+// Pure helper: given a scripted sequence of timestamped keystroke events for a word,
+// returns the word's elapsed typing time from the first character to the completing
+// space. The inter-word switch gap is excluded by construction — the clock starts on
+// the first character, not when the previous word was submitted. Backspacing does not
+// reset that start timestamp; fumbling is counted as genuine difficulty.
+export const computeWordTimingFromEvents = (events: KeystrokeEvent[]): number => {
+  let firstKeystrokeTimestamp: number | null = null;
+
+  for (const { key, timestamp } of events) {
+    if (key === 'Backspace') continue; // never resets the start timestamp
+    if (key === ' ') {
+      return computeWordElapsedTime(firstKeystrokeTimestamp, timestamp);
+    }
+    if (firstKeystrokeTimestamp === null) {
+      firstKeystrokeTimestamp = timestamp; // first character — right or wrong — starts the clock
+    }
+  }
+
+  return 0;
+};
+
 export const calculateGraduationThreshold = (wpm: number): number => {
   const totalTimeInMilliseconds = 60000;
   const avgCharsPerWord = 5;
