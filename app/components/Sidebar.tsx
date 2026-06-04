@@ -42,7 +42,7 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange 
     .map(([word, stats]) => ({
       word,
       stats,
-      isGraduated: isGraduated(stats.lastScore, wpmTarget)
+      isGraduated: isGraduated(stats, wpmTarget)
     }))
     .filter(entry => !entry.isGraduated)  // Only show non-graduated words
     .sort((a, b) => {

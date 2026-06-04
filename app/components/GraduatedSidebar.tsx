@@ -15,7 +15,7 @@ export default function GraduatedSidebar({ isOpen, wordStats, toggleSidebar, wpm
     .map(([word, stats]) => ({
       word,
       stats,
-      isGraduated: isGraduated(stats.lastScore, wpmTarget)
+      isGraduated: isGraduated(stats, wpmTarget)
     }))
     .filter(entry => entry.isGraduated)
     .sort((a, b) => a.stats.lastScore - b.stats.lastScore);  // Best performers first

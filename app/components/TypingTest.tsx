@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
-import { generateWordSet, calculateNormalizedScore, computeWordElapsedTime, WordStats } from '../utils/wordUtils';
+import { generateWordSet, calculateNormalizedScore, computeWordElapsedTime, updateGraduationCounter, WordStats } from '../utils/wordUtils';
 import { loadWordStats, saveWordStats, loadWpmTarget, resetAppData } from '../utils/persistence';
 
 function createInitialWordStats(): Record<string, WordStats> {
@@ -165,8 +165,8 @@ export default function TypingTest() {
   };
 
   const finishTest = () => {
-    const updatedStats = calculateNewStats();
     const wpmTarget = loadWpmTarget();
+    const updatedStats = calculateNewStats(wpmTarget);
     const newWords = generateWordSet(wordCount, wpmTarget, updatedStats, allWords);
 
     saveWordStats(updatedStats);
@@ -174,9 +174,9 @@ export default function TypingTest() {
     startTestWithWords(newWords);
   };
 
-  const calculateNewStats = () => {
+  const calculateNewStats = (wpmTarget: number) => {
     const updatedStats = { ...globalWordStats };
-    
+
     const wordGroups = typedWordsData.reduce((acc, { word, time }) => {
       if (!acc[word]) {
         acc[word] = { totalTime: 0, count: 0 };
@@ -189,13 +189,14 @@ export default function TypingTest() {
     Object.entries(wordGroups).forEach(([word, { totalTime, count }]) => {
       const avgTime = totalTime / count;
       const normalizedScore = calculateNormalizedScore(avgTime, word.length);
-      
-      updatedStats[word] = {
+
+      const withNewScore: WordStats = {
         ...updatedStats[word],
         time: avgTime,
         attempts: (updatedStats[word]?.attempts || 0) + 1,
-        lastScore: normalizedScore
+        lastScore: normalizedScore,
       };
+      updatedStats[word] = updateGraduationCounter(withNewScore, wpmTarget);
     });
 
     return updatedStats;

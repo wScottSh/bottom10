@@ -3,6 +3,7 @@ export interface WordStats {
   time: number;
   attempts: number;
   lastScore: number;
+  consecutiveSubThreshold?: number;
 }
 
 export const calculateNormalizedScore = (avgTime: number, wordLength: number): number => {
@@ -27,14 +28,26 @@ export const calculateGraduationThreshold = (wpm: number): number => {
   return totalTimeInMilliseconds / (wpm * avgCharsPerWord);
 };
 
-export const isGraduated = (score: number, wpm: number): boolean => {
-  return score > 0 && score < calculateGraduationThreshold(wpm);
+export const isGraduated = (stats: WordStats, wpm: number): boolean => {
+  return (stats.consecutiveSubThreshold ?? 0) >= 2;
+};
+
+// Increments the consecutive-sub-threshold counter when the word's lastScore is under the
+// graduation threshold, or resets it to 0 when the word is at/over threshold.
+// Graduation fires when the counter reaches 2 (checked via isGraduated).
+export const updateGraduationCounter = (stats: WordStats, wpm: number): WordStats => {
+  const threshold = calculateGraduationThreshold(wpm);
+  const subThreshold = stats.lastScore > 0 && stats.lastScore < threshold;
+  return {
+    ...stats,
+    consecutiveSubThreshold: subThreshold ? (stats.consecutiveSubThreshold ?? 0) + 1 : 0,
+  };
 };
 
 export const getTopWordsForTest = (wordStats: Record<string, WordStats>, wpm: number) => {
   // Select non-graduated words, then sort worst (highest score) first; unscored (score 0) come after scored words
   const candidates = Object.entries(wordStats)
-    .filter(([, stats]) => !isGraduated(stats.lastScore, wpm))
+    .filter(([, stats]) => !isGraduated(stats, wpm))
     .map(([word, stats]) => ({
       word,
       score: stats.lastScore || 0
@@ -63,7 +76,7 @@ export const selectWorkingSet = (
 
   // Active: scored words not yet graduated, worst (highest score) first
   const active = scored
-    .filter(([, stats]) => !isGraduated(stats.lastScore, wpmTarget))
+    .filter(([, stats]) => !isGraduated(stats, wpmTarget))
     .sort((a, b) => b[1].lastScore - a[1].lastScore)
     .map(([word]) => word)
     .slice(0, maxSize);
@@ -212,13 +225,19 @@ export const selectWordsForTest = (
 
   const hasScoredWord = selectedWords.some(word => (wordStats[word]?.lastScore ?? 0) > 0);
   if (!hasScoredWord) {
-    return allWords.filter(word => !isGraduated(wordStats[word]?.lastScore ?? 0, wpmTarget));
+    return allWords.filter(word => {
+      const s = wordStats[word];
+      return !s || !isGraduated(s, wpmTarget);
+    });
   }
 
   const repeatedWords = expandDistribution(buildWordDistribution(selectedWords, wordStats, count));
 
   return repeatedWords.length === 0
-    ? allWords.filter(word => !isGraduated(wordStats[word]?.lastScore ?? 0, wpmTarget))
+    ? allWords.filter(word => {
+        const s = wordStats[word];
+        return !s || !isGraduated(s, wpmTarget);
+      })
     : repeatedWords;
 };
 
@@ -250,7 +269,7 @@ export const generateWordSet = (
     // Last resort: any word that hasn't graduated.
     const nonGraduatedWords = allWords.filter(word => {
       const stats = wordStats[word];
-      return !stats || !isGraduated(stats.lastScore, wpmTarget);
+      return !stats || !isGraduated(stats, wpmTarget);
     });
     wordsForTest = shuffleArray(nonGraduatedWords).slice(0, count);
   }

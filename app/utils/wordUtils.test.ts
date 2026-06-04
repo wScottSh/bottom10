@@ -8,6 +8,7 @@ import {
   calculateNormalizedScore,
   calculateGraduationThreshold,
   isGraduated,
+  updateGraduationCounter,
   getTopWordsForTest,
   computeWordElapsedTime,
   WordStats,
@@ -103,9 +104,9 @@ describe('selectWordsForTest', () => {
     for (const w of allWords) {
       wordStats[w] = { word: w, time: 0, attempts: 0, lastScore: 0 };
     }
-    // Graduated words: score > 0 and < threshold (300ms at 40 wpm)
-    wordStats['the'] = { word: 'the', time: 100, attempts: 1, lastScore: 100 };
-    wordStats['of'] = { word: 'of', time: 200, attempts: 1, lastScore: 200 };
+    // Graduated: score < threshold (300ms at 40 wpm) AND consecutiveSubThreshold >= 2
+    wordStats['the'] = { word: 'the', time: 100, attempts: 1, lastScore: 100, consecutiveSubThreshold: 2 };
+    wordStats['of'] = { word: 'of', time: 200, attempts: 1, lastScore: 200, consecutiveSubThreshold: 2 };
     // Non-graduated (above threshold)
     wordStats['and'] = { word: 'and', time: 400, attempts: 1, lastScore: 400 };
 
@@ -146,7 +147,7 @@ describe('normalized scoring seam', () => {
     expect(shortScore).toBe(longScore);
   });
 
-  test('fast short word scores below graduation threshold and graduates', () => {
+  test('fast short word score is below graduation threshold', () => {
     // At 60 WPM, threshold = 200 ms/char
     const wpmTarget = 60;
     const threshold = calculateGraduationThreshold(wpmTarget);
@@ -156,7 +157,11 @@ describe('normalized scoring seam', () => {
     const score = calculateNormalizedScore(fastShortWordTime, 'hi'.length);
 
     expect(score).toBeLessThan(threshold);
-    expect(isGraduated(score, wpmTarget)).toBe(true);
+    // Durable graduation requires 2 consecutive sub-threshold tests; one alone is not enough.
+    const stats: WordStats = { word: 'hi', time: fastShortWordTime, attempts: 1, lastScore: score, consecutiveSubThreshold: 1 };
+    expect(isGraduated(stats, wpmTarget)).toBe(false);
+    const statsGraduated: WordStats = { ...stats, consecutiveSubThreshold: 2 };
+    expect(isGraduated(statsGraduated, wpmTarget)).toBe(true);
   });
 });
 
@@ -214,23 +219,36 @@ describe('wordUtils', () => {
   });
 
   describe('isGraduated', () => {
-    it('returns false for score of 0 (unscored)', () => {
-      expect(isGraduated(0, 60)).toBe(false);
+    const mkStats = (lastScore: number, consecutiveSubThreshold = 0): WordStats =>
+      ({ word: 'hi', time: lastScore, attempts: 1, lastScore, consecutiveSubThreshold });
+
+    it('returns false for unscored word (consecutiveSubThreshold=0)', () => {
+      expect(isGraduated(mkStats(0), 60)).toBe(false);
     });
 
-    it('returns true when score is below threshold', () => {
+    it('returns false after a single sub-threshold test (counter=1, not yet durable)', () => {
       const threshold = calculateGraduationThreshold(60); // 200ms
-      expect(isGraduated(threshold - 1, 60)).toBe(true);
+      expect(isGraduated(mkStats(threshold - 1, 1), 60)).toBe(false);
+    });
+
+    it('returns true after two consecutive sub-threshold tests (counter=2)', () => {
+      const threshold = calculateGraduationThreshold(60);
+      expect(isGraduated(mkStats(threshold - 1, 2), 60)).toBe(true);
     });
 
     it('returns false when score equals threshold', () => {
       const threshold = calculateGraduationThreshold(60);
-      expect(isGraduated(threshold, 60)).toBe(false);
+      expect(isGraduated(mkStats(threshold, 0), 60)).toBe(false);
     });
 
     it('returns false when score exceeds threshold (slow word)', () => {
       const threshold = calculateGraduationThreshold(60);
-      expect(isGraduated(threshold + 100, 60)).toBe(false);
+      expect(isGraduated(mkStats(threshold + 100, 0), 60)).toBe(false);
+    });
+
+    it('defaults missing consecutiveSubThreshold to 0 (pre-existing records not graduated)', () => {
+      const stats = { word: 'hi', time: 100, attempts: 1, lastScore: 100 } as WordStats;
+      expect(isGraduated(stats, 60)).toBe(false);
     });
   });
 
@@ -249,8 +267,8 @@ describe('wordUtils', () => {
     it('excludes graduated words', () => {
       const threshold = calculateGraduationThreshold(60); // 200ms
       const wordStats: Record<string, WordStats> = {
-        fast: { word: 'fast', time: 100, attempts: 5, lastScore: threshold - 1 }, // graduated
-        slow: { word: 'slow', time: 500, attempts: 5, lastScore: 500 },           // not graduated
+        fast: { word: 'fast', time: 100, attempts: 5, lastScore: threshold - 1, consecutiveSubThreshold: 2 }, // graduated
+        slow: { word: 'slow', time: 500, attempts: 5, lastScore: 500, consecutiveSubThreshold: 0 },           // not graduated
       };
 
       const result = getTopWordsForTest(wordStats, 60);
@@ -295,21 +313,23 @@ describe('computeWordElapsedTime', () => {
     expect(elapsed).toBeLessThan(completionTimestamp - prevWordSpaceTimestamp);
   });
 
-  test('fast short word can graduate with first-keystroke timing but not with switch-cost-inflated timing', () => {
+  test('fast short word score is sub-threshold with first-keystroke timing but not with switch-cost-inflated timing', () => {
     const wpmTarget = 60;
     const threshold = calculateGraduationThreshold(wpmTarget); // 200 ms/char
 
-    // "hi" typed at 80ms/char: elapsed = 160ms, score = 80ms/char < threshold → graduates
+    // "hi" typed at 80ms/char: elapsed = 160ms, score = 80ms/char < threshold
     const elapsed = computeWordElapsedTime(0, 160);
     const score = calculateNormalizedScore(elapsed, 'hi'.length);
 
     expect(score).toBeLessThan(threshold);
-    expect(isGraduated(score, wpmTarget)).toBe(true);
+    // After two consecutive sub-threshold tests the word is durably graduated
+    const graduatedStats: WordStats = { word: 'hi', time: elapsed, attempts: 2, lastScore: score, consecutiveSubThreshold: 2 };
+    expect(isGraduated(graduatedStats, wpmTarget)).toBe(true);
 
-    // With old switch-cost-inflated timing (500ms inter-word gap added):
+    // With old switch-cost-inflated timing (500ms inter-word gap added), score is above threshold
     const oldElapsed = elapsed + 500;
     const oldScore = calculateNormalizedScore(oldElapsed, 'hi'.length);
-    expect(isGraduated(oldScore, wpmTarget)).toBe(false);
+    expect(oldScore).toBeGreaterThanOrEqual(threshold);
   });
 
   test('returns 0 when there is no recorded first keystroke', () => {
@@ -354,10 +374,10 @@ describe('selectWorkingSet', () => {
   });
 
   test('graduated words excluded; their slots filled from untouched in frequency order', () => {
-    // threshold at 40wpm = 300ms; lastScore: 100 < 300 => graduated
+    // threshold at 40wpm = 300ms; lastScore: 100 < 300 and consecutiveSubThreshold: 2 => graduated
     const wordStats: Record<string, WordStats> = {
-      the: { word: 'the', time: 100, attempts: 1, lastScore: 100 }, // graduated
-      of:  { word: 'of',  time: 500, attempts: 1, lastScore: 500 }, // active
+      the: { word: 'the', time: 100, attempts: 1, lastScore: 100, consecutiveSubThreshold: 2 }, // graduated
+      of:  { word: 'of',  time: 500, attempts: 1, lastScore: 500, consecutiveSubThreshold: 0 }, // active
     };
     const result = selectWorkingSet(wordStats, 40, frequencyWords, 10);
     expect(result).not.toContain('the');
@@ -457,9 +477,9 @@ describe('generateWordSet', () => {
 
   test('excludes graduated words', () => {
     const allWords = ['the', 'be', 'to', 'of', 'and'];
-    // wpmTarget=40 => threshold = 60000/(40*5) = 300ms; lastScore=100 < 300 & > 0 => graduated
+    // wpmTarget=40 => threshold = 300ms; lastScore=100 < 300 and consecutiveSubThreshold=2 => graduated
     const stats = makeStats(allWords, {
-      the: { time: 100, attempts: 5, lastScore: 100 }
+      the: { time: 100, attempts: 5, lastScore: 100, consecutiveSubThreshold: 2 }
     });
 
     for (let i = 0; i < 5; i++) {
@@ -589,5 +609,65 @@ describe('buildConvexDistribution', () => {
   test('empty entries returns empty result', () => {
     const dist = buildConvexDistribution(50, []);
     expect(Object.keys(dist).length).toBe(0);
+  });
+});
+
+describe('updateGraduationCounter', () => {
+  const wpm = 40; // threshold = 60000 / (40 * 5) = 300ms
+
+  const mkStats = (lastScore: number, consecutiveSubThreshold = 0): WordStats =>
+    ({ word: 'hi', time: lastScore, attempts: 1, lastScore, consecutiveSubThreshold });
+
+  test('increments counter when score is below threshold', () => {
+    const stats = mkStats(100, 0); // 100 < 300
+    const updated = updateGraduationCounter(stats, wpm);
+    expect(updated.consecutiveSubThreshold).toBe(1);
+  });
+
+  test('resets counter to 0 when score equals threshold', () => {
+    const stats = mkStats(300, 1); // 300 = threshold
+    const updated = updateGraduationCounter(stats, wpm);
+    expect(updated.consecutiveSubThreshold).toBe(0);
+  });
+
+  test('resets counter to 0 when score exceeds threshold', () => {
+    const stats = mkStats(500, 1); // 500 > 300
+    const updated = updateGraduationCounter(stats, wpm);
+    expect(updated.consecutiveSubThreshold).toBe(0);
+  });
+
+  test('a single sub-threshold test does not graduate the word', () => {
+    const stats = mkStats(100, 0);
+    const updated = updateGraduationCounter(stats, wpm);
+    expect(isGraduated(updated, wpm)).toBe(false);
+  });
+
+  test('two consecutive sub-threshold tests graduate the word', () => {
+    const stats = mkStats(100, 1); // counter already at 1
+    const updated = updateGraduationCounter(stats, wpm);
+    expect(updated.consecutiveSubThreshold).toBe(2);
+    expect(isGraduated(updated, wpm)).toBe(true);
+  });
+
+  test('at-threshold result resets accumulated progress', () => {
+    const stats = mkStats(300, 1); // was 1 away from graduating
+    const updated = updateGraduationCounter(stats, wpm);
+    expect(updated.consecutiveSubThreshold).toBe(0);
+    expect(isGraduated(updated, wpm)).toBe(false);
+  });
+
+  test('preserves other WordStats fields unchanged', () => {
+    const stats: WordStats = { word: 'hello', time: 250, attempts: 5, lastScore: 100, consecutiveSubThreshold: 0 };
+    const updated = updateGraduationCounter(stats, wpm);
+    expect(updated.word).toBe('hello');
+    expect(updated.time).toBe(250);
+    expect(updated.attempts).toBe(5);
+    expect(updated.lastScore).toBe(100);
+  });
+
+  test('defaults missing consecutiveSubThreshold to 0 (localStorage migration)', () => {
+    const stats = { word: 'hi', time: 100, attempts: 1, lastScore: 100 } as WordStats;
+    const updated = updateGraduationCounter(stats, wpm);
+    expect(updated.consecutiveSubThreshold).toBe(1); // treated as 0, then incremented
   });
 });
