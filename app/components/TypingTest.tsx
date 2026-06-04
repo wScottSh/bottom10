@@ -148,6 +148,8 @@ export default function TypingTest() {
       return;
     }
 
+    if (isWordErrored) return;
+
     const newChar = value[value.length - 1];
     const expectedChar = currentWord[currentInput.length];
 
@@ -297,14 +299,14 @@ export default function TypingTest() {
                 key={wordIndex}
                 className={`word ${
                   wordIndex === currentWordIndex
-                    ? 'current'
+                    ? 'current' + (isWordErrored ? ' error' : '')
                     : wordIndex < currentWordIndex ? 'completed' : ''
                 }`}
               >
                 {word.split('').map((char, charIndex) => {
                   let charClass = '';
                   if (wordIndex === currentWordIndex) {
-                    if (charIndex < currentCharIndex) charClass = 'char-correct';
+                    if (!isWordErrored && charIndex < currentCharIndex) charClass = 'char-correct';
                     else if (charIndex === currentCharIndex && hasError) charClass = 'char-error';
                   }
                   return (
