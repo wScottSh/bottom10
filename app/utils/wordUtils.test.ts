@@ -288,6 +288,39 @@ describe('wordUtils', () => {
       expect(result[1]).toBe('bad');
       expect(result[2]).toBe('unscored');
     });
+
+    it('returns empty array when stats is empty', () => {
+      const result = getTopWordsForTest({});
+      expect(result).toEqual([]);
+    });
+
+    it('returns empty array when all words are graduated', () => {
+      const threshold = calculateGraduationThreshold(60); // 200ms
+      const wordStats: Record<string, WordStats> = {
+        a: { word: 'a', time: 100, attempts: 5, lastScore: threshold - 1, consecutiveSubThreshold: 2 },
+        b: { word: 'b', time: 80, attempts: 5, lastScore: threshold - 50, consecutiveSubThreshold: 2 },
+        c: { word: 'c', time: 60, attempts: 5, lastScore: threshold - 80, consecutiveSubThreshold: 3 },
+      };
+
+      const result = getTopWordsForTest(wordStats);
+
+      expect(result).toEqual([]);
+    });
+
+    it('returns all unscored words (up to 10) when no words have been scored yet', () => {
+      const wordStats: Record<string, WordStats> = {};
+      for (let i = 0; i < 15; i++) {
+        wordStats[`word${i}`] = { word: `word${i}`, time: 0, attempts: 0, lastScore: 0 };
+      }
+
+      const result = getTopWordsForTest(wordStats);
+
+      expect(result.length).toBe(10);
+      // All returned words should be unscored (from the stats)
+      for (const w of result) {
+        expect(wordStats[w].lastScore).toBe(0);
+      }
+    });
   });
 });
 
