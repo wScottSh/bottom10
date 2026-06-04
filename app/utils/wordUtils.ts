@@ -260,13 +260,17 @@ export const generateWordSet = (
   // getTopWordsForTest already filters out graduated words, so pass the full stats.
   const selectedWords = getTopWordsForTest(wordStats);
 
+  const hasScoredWord = selectedWords.some(word => (wordStats[word]?.lastScore ?? 0) > 0);
+
   let wordsForTest: string[];
-  if (selectedWords.length === 0) {
+  if (selectedWords.length === 0 || !hasScoredWord) {
+    // No scored words yet (first session or all-unscored working set): draw
+    // frequency-ordered untouched words to fill exactly count slots.
     const unscoredWords = allWords.filter(word => {
       const stats = wordStats[word];
       return !stats || !stats.lastScore;
     });
-    wordsForTest = shuffleArray(unscoredWords).slice(0, count);
+    wordsForTest = shuffleArray(unscoredWords.slice(0, count));
   } else {
     const repeatedWords = expandDistribution(buildWordDistribution(selectedWords, wordStats, count));
     wordsForTest = shuffleArray(repeatedWords);

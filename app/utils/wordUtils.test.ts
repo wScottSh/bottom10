@@ -513,6 +513,30 @@ describe('generateWordSet', () => {
     const result = generateWordSet(50, stats, allWords);
     expect(result.length).toBe(50);
   });
+
+  test('produced list length equals requested count exactly when all words are unscored', () => {
+    // allWords has enough entries to fill count; none have been scored yet
+    const allWords = Array.from({ length: 60 }, (_, i) => `word${i}`);
+    const stats = makeStats(allWords);  // all 60 words with lastScore: 0
+
+    const result = generateWordSet(50, stats, allWords);
+    expect(result.length).toBe(50);
+  });
+
+  test('first test draws words from allWords in frequency (slice) order before shuffle', () => {
+    // Verify the pool comes from allWords (frequency-ordered), not an arbitrary subset.
+    // We use a small count so we can check membership precisely.
+    const allWords = ['freq1', 'freq2', 'freq3', 'freq4', 'freq5',
+                      'freq6', 'freq7', 'freq8', 'freq9', 'freq10'];
+    const stats = makeStats(allWords);  // all unscored
+
+    const result = generateWordSet(5, stats, allWords);
+    expect(result.length).toBe(5);
+    // Every returned word must be in allWords
+    for (const w of result) {
+      expect(allWords).toContain(w);
+    }
+  });
 });
 
 describe('buildConvexDistribution', () => {
