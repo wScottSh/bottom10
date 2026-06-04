@@ -144,8 +144,8 @@ export default function TypingTest() {
     if (value.length < currentInput.length) {
       setCurrentInput(value);
       setCurrentCharIndex(value.length);
+      setHasError(false);
       if (value.length === 0) {
-        setHasError(false);
         setIsWordErrored(false);
       }
       return;
@@ -157,7 +157,6 @@ export default function TypingTest() {
     if (newChar !== expectedChar) {
       setHasError(true);
       setIsWordErrored(true);
-      setCurrentInput(value.slice(0, currentCharIndex + 1));
       return;
     }
 
@@ -290,23 +289,30 @@ export default function TypingTest() {
               <span
                 key={wordIndex}
                 className={`word ${
-                  wordIndex === currentWordIndex 
-                    ? isWordErrored ? 'error' : 'current' 
+                  wordIndex === currentWordIndex
+                    ? 'current'
                     : wordIndex < currentWordIndex ? 'completed' : ''
                 }`}
               >
-                {word.split('').map((char, charIndex) => (
-                  <span 
-                    key={charIndex} 
-                    className="char relative pb-[0.3em]"
-                  >
-                    {char}
-                    {wordIndex === currentWordIndex && 
-                    charIndex === currentCharIndex && (
-                      <span className="absolute left-0 bottom-[0.15em] w-full h-[2px] bg-[#e2b714] transition-all duration-[50ms] ease-out" />
-                    )}
-                  </span>
-                ))}
+                {word.split('').map((char, charIndex) => {
+                  let charClass = '';
+                  if (wordIndex === currentWordIndex) {
+                    if (charIndex < currentCharIndex) charClass = 'char-correct';
+                    else if (charIndex === currentCharIndex && hasError) charClass = 'char-error';
+                  }
+                  return (
+                    <span
+                      key={charIndex}
+                      className={`char relative pb-[0.3em] ${charClass}`}
+                    >
+                      {char}
+                      {wordIndex === currentWordIndex &&
+                      charIndex === currentCharIndex && (
+                        <span className="absolute left-0 bottom-[0.15em] w-full h-[2px] bg-[#e2b714] transition-all duration-[50ms] ease-out" />
+                      )}
+                    </span>
+                  );
+                })}
                 <span className="char relative pb-[0.3em]">
                   {'\u00A0'}
                   {wordIndex === currentWordIndex && 

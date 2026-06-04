@@ -32,6 +32,14 @@
   color: var(--accent);
 }
 
+.char-correct {
+  color: var(--accent);
+}
+
+.char-error {
+  color: var(--error, #ca4754);
+}
+
 .input {
   width: 0;
   height: 0;
