@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, KeyboardEvent } from 'react';
-import { WordStats, isGraduated, scoreToWpm } from '../utils/wordUtils';
+import { WordStats, isGraduated, isGraduationCandidate, scoreToWpm } from '../utils/wordUtils';
 import { loadWpmTarget, saveWpmTarget } from '../utils/persistence';
 
 interface SidebarProps {
@@ -95,21 +95,26 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange 
         </div>
 
         <ul className="space-y-1">
-          {sortedWords.map(({ word, stats, isGraduated }, index) => (
-            <li key={`${word}-${index}`}>
-              <div className="flex justify-between text-sm">
-                <span className={isGraduated ? 'text-green-500' : ''}>
-                  {word}
-                </span>
-                {stats.lastScore > 0 && (
-                  <span className={`${isGraduated ? 'text-green-500' : 'text-[#e2b714]'}`}>
-                    {scoreToWpm(stats.lastScore)} wpm
+          {sortedWords.map(({ word, stats, isGraduated }, index) => {
+            const isCandidate = isGraduationCandidate(stats) && !isGraduated;
+            const wordColor = isGraduated ? 'text-green-500' : isCandidate ? 'text-cyan-400' : '';
+            const wpmColor = isGraduated ? 'text-green-500' : isCandidate ? 'text-cyan-400' : 'text-[#e2b714]';
+            return (
+              <li key={`${word}-${index}`}>
+                <div className="flex justify-between text-sm">
+                  <span className={wordColor}>
+                    {word}
                   </span>
-                )}
-              </div>
-              {index === 9 && <hr className="my-2 border-[#e2b714]" />}
-            </li>
-          ))}
+                  {stats.lastScore > 0 && (
+                    <span className={wpmColor}>
+                      {scoreToWpm(stats.lastScore)} wpm
+                    </span>
+                  )}
+                </div>
+                {index === 9 && <hr className="my-2 border-[#e2b714]" />}
+              </li>
+            );
+          })}
         </ul>
       </div>
     </div>

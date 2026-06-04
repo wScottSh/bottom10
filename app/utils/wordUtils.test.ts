@@ -8,6 +8,7 @@ import {
   calculateNormalizedScore,
   calculateGraduationThreshold,
   isGraduated,
+  isGraduationCandidate,
   updateGraduationCounter,
   getTopWordsForTest,
   computeWordElapsedTime,
@@ -251,6 +252,28 @@ describe('wordUtils', () => {
     it('defaults missing consecutiveSubThreshold to 0 (pre-existing records not graduated)', () => {
       const stats = { word: 'hi', time: 100, attempts: 1, lastScore: 100 } as WordStats;
       expect(isGraduated(stats)).toBe(false);
+    });
+  });
+
+  describe('isGraduationCandidate', () => {
+    const mkStats = (consecutiveSubThreshold: number): WordStats =>
+      ({ word: 'hi', time: 100, attempts: 1, lastScore: 100, consecutiveSubThreshold });
+
+    it('returns true when consecutiveSubThreshold is exactly 1', () => {
+      expect(isGraduationCandidate(mkStats(1))).toBe(true);
+    });
+
+    it('returns false when consecutiveSubThreshold is 0', () => {
+      expect(isGraduationCandidate(mkStats(0))).toBe(false);
+    });
+
+    it('returns false when consecutiveSubThreshold is 2 (already graduated)', () => {
+      expect(isGraduationCandidate(mkStats(2))).toBe(false);
+    });
+
+    it('returns false when consecutiveSubThreshold is missing (legacy stats)', () => {
+      const stats = { word: 'hi', time: 100, attempts: 1, lastScore: 100 } as WordStats;
+      expect(isGraduationCandidate(stats)).toBe(false);
     });
   });
 

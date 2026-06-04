@@ -72,6 +72,12 @@ export const isGraduated = (stats: WordStats): boolean => {
   return (stats.consecutiveSubThreshold ?? 0) >= GRADUATION_STREAK;
 };
 
+// A word is a graduation candidate when it has one sub-threshold result and needs
+// one more to graduate (consecutiveSubThreshold === GRADUATION_STREAK - 1).
+export const isGraduationCandidate = (stats: WordStats): boolean => {
+  return (stats.consecutiveSubThreshold ?? 0) === GRADUATION_STREAK - 1;
+};
+
 // Increments the consecutive-sub-threshold counter when the word's lastScore is under the
 // graduation threshold, or resets it to 0 when the word is at/over threshold.
 // Graduation fires once the counter reaches GRADUATION_STREAK (checked via isGraduated).
