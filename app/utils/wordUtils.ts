@@ -82,6 +82,66 @@ export const shuffleArray = (array: string[]): string[] => {
   return [...array].sort(() => Math.random() - 0.5);
 };
 
+// Builds a convex score-weighted distribution of N reps across scored words.
+// entries must be sorted worst-first (highest score first); all scores must be > 0.
+// Each word's share is proportional to shape(t) = t² where
+// t = (score − bestScore) / (worstScore − bestScore), so worst→t=1, best→t=0.
+// The best word (t=0) gets only the floor (2 reps). The worst word always gets the
+// most reps, naturally satisfying monotonicity. Floor relaxes when N is too small.
+// Total is exactly N via the largest-remainder method.
+export const buildConvexDistribution = (
+  n: number,
+  entries: Array<{ word: string; score: number }>
+): Record<string, number> => {
+  const k = entries.length;
+  if (k === 0) return {};
+  if (k === 1) return { [entries[0].word]: n };
+
+  // Floor per word; relax when N is too small to give everyone FLOOR reps
+  const FLOOR = 2;
+  const floor = Math.min(FLOOR, Math.floor(n / k));
+  const remaining = n - k * floor;
+
+  const worstScore = entries[0].score;
+  const bestScore = entries[k - 1].score;
+  const range = worstScore - bestScore;
+
+  // Start everyone at floor; distribute remaining proportionally via shape(t)
+  const alloc: number[] = new Array(k).fill(floor);
+
+  if (remaining > 0 && range > 0) {
+    const shapes = entries.map(e => {
+      const t = Math.max(0, Math.min(1, (e.score - bestScore) / range));
+      return t * t;
+    });
+    const shapeSum = shapes.reduce((a, b) => a + b, 0);
+
+    if (shapeSum > 0) {
+      // Largest-remainder method so the extras sum exactly to `remaining`
+      const ideals = shapes.map(s => (s / shapeSum) * remaining);
+      const floors = ideals.map(Math.floor);
+      const deficit = remaining - floors.reduce((a, b) => a + b, 0);
+      const fracs = ideals.map((ideal, i) => ({ i, frac: ideal - Math.floor(ideal) }));
+      fracs.sort((a, b) => b.frac - a.frac);
+      for (let j = 0; j < deficit; j++) floors[fracs[j].i]++;
+      for (let i = 0; i < k; i++) alloc[i] += floors[i];
+    } else {
+      alloc[0] += remaining;
+    }
+  } else if (remaining > 0) {
+    // All tied (range = 0): push remaining to worst
+    alloc[0] += remaining;
+  }
+
+  // Floating-point safety: push any residual to worst (should always be 0)
+  const total = alloc.reduce((a, b) => a + b, 0);
+  alloc[0] += n - total;
+
+  const result: Record<string, number> = {};
+  for (let i = 0; i < k; i++) result[entries[i].word] = alloc[i];
+  return result;
+};
+
 export const generateFrequencyDistribution = (wordCount: number, bottomWords: string[]): Record<string, number> => {
   const worstWordCount = Math.max(Math.floor(wordCount * 0.25), 1);
   const remainingCount = wordCount - worstWordCount;
@@ -111,27 +171,35 @@ export const selectWordsForTest = (
   count: number,
   allWords: string[]
 ): string[] => {
-  // getTopWordsForTest already excludes graduated words, so pass wordStats directly.
   const selectedWords = getTopWordsForTest(wordStats, wpmTarget);
 
   if (selectedWords.length === 0) {
-    // No scored, non-graduated words yet — fall back to the unscored words.
     return allWords.filter(word => !wordStats[word]?.lastScore);
   }
 
-  const frequencies = generateFrequencyDistribution(count, selectedWords);
-  const repeatedWords: string[] = [];
-  Object.entries(frequencies).forEach(([word, freq]) => {
-    for (let i = 0; i < freq; i++) {
-      repeatedWords.push(word);
-    }
-  });
+  const scoredWords = selectedWords.filter(w => (wordStats[w]?.lastScore ?? 0) > 0);
+  const unscoredWords = selectedWords.filter(w => !((wordStats[w]?.lastScore ?? 0) > 0));
 
-  if (repeatedWords.length === 0) {
+  if (scoredWords.length === 0) {
     return allWords.filter(word => !isGraduated(wordStats[word]?.lastScore ?? 0, wpmTarget));
   }
 
-  return repeatedWords;
+  const FLOOR = 2;
+  const unscoredBudget = unscoredWords.length * FLOOR;
+  const scoredBudget = count - unscoredBudget;
+  const scoredEntries = scoredWords.map(w => ({ word: w, score: wordStats[w].lastScore }));
+
+  const dist = buildConvexDistribution(Math.max(scoredBudget, scoredEntries.length), scoredEntries);
+  for (const w of unscoredWords) dist[w] = FLOOR;
+
+  const repeatedWords: string[] = [];
+  Object.entries(dist).forEach(([word, freq]) => {
+    for (let i = 0; i < freq; i++) repeatedWords.push(word);
+  });
+
+  return repeatedWords.length === 0
+    ? allWords.filter(word => !isGraduated(wordStats[word]?.lastScore ?? 0, wpmTarget))
+    : repeatedWords;
 };
 
 // Builds the shuffled, count-sized word set for the next test. Pure: callers pass
@@ -148,19 +216,28 @@ export const generateWordSet = (
 
   let wordsForTest: string[];
   if (selectedWords.length === 0) {
-    // No scored-but-not-graduated words yet: fall back to untyped words.
     const unscoredWords = allWords.filter(word => {
       const stats = wordStats[word];
       return !stats || !stats.lastScore;
     });
     wordsForTest = shuffleArray(unscoredWords).slice(0, count);
   } else {
-    const frequencies = generateFrequencyDistribution(count, selectedWords);
+    const scoredWords = selectedWords.filter(w => (wordStats[w]?.lastScore ?? 0) > 0);
+    const unscoredWords = selectedWords.filter(w => !((wordStats[w]?.lastScore ?? 0) > 0));
+
+    const FLOOR = 2;
+    const unscoredBudget = unscoredWords.length * FLOOR;
+    const scoredBudget = count - unscoredBudget;
+    const scoredEntries = scoredWords.map(w => ({ word: w, score: wordStats[w].lastScore }));
+
+    const dist = scoredEntries.length > 0
+      ? buildConvexDistribution(Math.max(scoredBudget, scoredEntries.length), scoredEntries)
+      : {};
+    for (const w of unscoredWords) dist[w] = FLOOR;
+
     const repeatedWords: string[] = [];
-    Object.entries(frequencies).forEach(([word, freq]) => {
-      for (let i = 0; i < freq; i++) {
-        repeatedWords.push(word);
-      }
+    Object.entries(dist).forEach(([word, freq]) => {
+      for (let i = 0; i < freq; i++) repeatedWords.push(word);
     });
     wordsForTest = shuffleArray(repeatedWords);
   }

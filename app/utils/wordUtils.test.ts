@@ -1,6 +1,7 @@
 import { describe, it, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   generateFrequencyDistribution,
+  buildConvexDistribution,
   selectWordsForTest,
   generateWordSet,
   selectWorkingSet,
@@ -474,5 +475,119 @@ describe('generateWordSet', () => {
     const result = generateWordSet(10, 40, stats, allWords);
 
     expect(result.length).toBeGreaterThan(0);
+  });
+
+  test('produced list length equals requested count exactly when scored words are present', () => {
+    const allWords = ['the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'it'];
+    const stats = makeStats(allWords, {
+      the:  { lastScore: 900 },
+      be:   { lastScore: 700 },
+      to:   { lastScore: 620 },
+      of:   { lastScore: 560 },
+      and:  { lastScore: 500 },
+      a:    { lastScore: 460 },
+      in:   { lastScore: 420 },
+      that: { lastScore: 380 },
+      have: { lastScore: 340 },
+      it:   { lastScore: 310 },
+    });
+
+    const result = generateWordSet(50, 40, stats, allWords);
+    expect(result.length).toBe(50);
+  });
+});
+
+describe('buildConvexDistribution', () => {
+  // Helpers
+  const mkEntries = (scores: number[]) =>
+    scores.map((score, i) => ({ word: String.fromCharCode(97 + i), score }));
+
+  // PRD worked example: N=50, 10 words, scores 900–310
+  const prdEntries = mkEntries([900, 700, 620, 560, 500, 460, 420, 380, 340, 310]);
+
+  test('produced word list totals exactly N — PRD worked example', () => {
+    const dist = buildConvexDistribution(50, prdEntries);
+    const total = Object.values(dist).reduce((a, b) => a + b, 0);
+    expect(total).toBe(50);
+  });
+
+  test('produced word list totals exactly N across a range of N', () => {
+    for (const n of [20, 30, 40, 50, 75, 100]) {
+      const dist = buildConvexDistribution(n, prdEntries);
+      const total = Object.values(dist).reduce((a, b) => a + b, 0);
+      expect(total).toBe(n);
+    }
+  });
+
+  test('worst word receives at least floor(0.25 * N) reps', () => {
+    const dist = buildConvexDistribution(50, prdEntries);
+    expect(dist['a']).toBeGreaterThanOrEqual(Math.floor(0.25 * 50)); // 12
+  });
+
+  test('best word receives exactly 2 reps (the floor) under normal conditions', () => {
+    const dist = buildConvexDistribution(50, prdEntries);
+    expect(dist['j']).toBe(2); // j is the best (lowest score 310)
+  });
+
+  test('rep counts are monotonic non-increasing from worst to best', () => {
+    const dist = buildConvexDistribution(50, prdEntries);
+    const reps = prdEntries.map(e => dist[e.word]);
+    for (let i = 1; i < reps.length; i++) {
+      expect(reps[i]).toBeLessThanOrEqual(reps[i - 1]);
+    }
+  });
+
+  test('near-as-bad second word gets substantially more reps than the best word', () => {
+    // word1=900, word2=870 (close to worst), word3=310 (much better)
+    const entries = mkEntries([900, 870, 310]);
+    const dist = buildConvexDistribution(50, entries);
+    // word2 should be close to word1 and far above the floor (2)
+    expect(dist['b']).toBeGreaterThan(dist['c'] + 2);
+    // monotonic
+    expect(dist['a']).toBeGreaterThanOrEqual(dist['b']);
+  });
+
+  test('near-tied scores still yield a valid full-length test', () => {
+    const entries = mkEntries([500, 499, 498, 497, 496]);
+    const dist = buildConvexDistribution(30, entries);
+    const total = Object.values(dist).reduce((a, b) => a + b, 0);
+    expect(total).toBe(30);
+  });
+
+  test('single word receives all N reps', () => {
+    const dist = buildConvexDistribution(20, [{ word: 'only', score: 500 }]);
+    expect(dist['only']).toBe(20);
+  });
+
+  test('two words: best gets 2 reps, worst absorbs the rest', () => {
+    const dist = buildConvexDistribution(20, mkEntries([900, 310]));
+    expect(dist['b']).toBe(2);
+    expect(dist['a'] + dist['b']).toBe(20);
+  });
+
+  test('fewer scored words (3) produce exactly N reps', () => {
+    const dist = buildConvexDistribution(50, mkEntries([900, 600, 310]));
+    const total = Object.values(dist).reduce((a, b) => a + b, 0);
+    expect(total).toBe(50);
+    expect(dist['c']).toBe(2); // best gets floor
+  });
+
+  test('small N degrades gracefully — no error, total equals N', () => {
+    // N=8 with 5 words: floor must relax to fit
+    const dist = buildConvexDistribution(8, mkEntries([900, 700, 500, 400, 310]));
+    const total = Object.values(dist).reduce((a, b) => a + b, 0);
+    expect(total).toBe(8);
+  });
+
+  test('all-tied scores still produce a valid full-length test', () => {
+    const entries = mkEntries([500, 500, 500, 500]);
+    const dist = buildConvexDistribution(20, entries);
+    const total = Object.values(dist).reduce((a, b) => a + b, 0);
+    expect(total).toBe(20);
+  });
+
+  test('empty entries returns empty result', () => {
+    const dist = buildConvexDistribution(50, []);
+    expect(Object.keys(dist).length).toBe(0);
   });
 });
