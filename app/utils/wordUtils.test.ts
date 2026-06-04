@@ -11,6 +11,8 @@ import {
   updateGraduationCounter,
   getTopWordsForTest,
   computeWordElapsedTime,
+  computeWordTimingFromEvents,
+  KeystrokeEvent,
   WordStats,
 } from './wordUtils';
 
@@ -371,6 +373,78 @@ describe('computeWordElapsedTime', () => {
     // Original first char at t=100; user backspaces and retypes, completing at t=400.
     // Elapsed is measured from the first char (t=100), not from the retype.
     expect(computeWordElapsedTime(100, 400)).toBe(300); // 400 - 100
+  });
+});
+
+describe('computeWordTimingFromEvents', () => {
+  const ev = (key: string, timestamp: number): KeystrokeEvent => ({ key, timestamp });
+
+  test('returns elapsed from first keystroke to space completion', () => {
+    const events = [ev('h', 500), ev('i', 600), ev(' ', 700)];
+    expect(computeWordTimingFromEvents(events)).toBe(200); // 700 - 500
+  });
+
+  test('regression: scripted sequence with deliberate pre-word pause — switch cost excluded', () => {
+    // First character arrives 500ms after the previous word's space (t=0).
+    // The sequence contains the gap via timestamps; the helper excludes it by
+    // starting the clock at the first character (t=500), not at t=0.
+    const prevWordSpaceTs = 0;
+    const events = [
+      ev('h', 500),  // first char — 500ms after previous word's space
+      ev('i', 600),
+      ev(' ', 700),  // completion
+    ];
+    const elapsed = computeWordTimingFromEvents(events);
+    expect(elapsed).toBe(200);                              // 700 - 500
+    expect(elapsed).toBeLessThan(700 - prevWordSpaceTs);   // excludes the 500ms gap
+  });
+
+  test('fast short word score is sub-threshold with sequence timing; switch-cost-inflated score is above', () => {
+    const wpmTarget = 60;
+    const threshold = calculateGraduationThreshold(wpmTarget); // 200 ms/char
+
+    // "hi" typed at 80ms/char (160ms total) but with a 500ms pre-word pause
+    const events = [ev('h', 500), ev('i', 580), ev(' ', 660)];
+    const elapsed = computeWordTimingFromEvents(events); // 660 - 500 = 160
+    const score = calculateNormalizedScore(elapsed, 'hi'.length);
+    expect(score).toBeLessThan(threshold); // 80 < 200 → can graduate
+
+    // Old approach measured from t=0: elapsed = 660, score = 330 > threshold
+    const oldScore = calculateNormalizedScore(660, 'hi'.length);
+    expect(oldScore).toBeGreaterThan(threshold);
+  });
+
+  test('backspacing to empty and retyping does not reset the start timestamp', () => {
+    // First char at t=100, backspace to empty at t=200, retype starting at t=300
+    const events = [
+      ev('h', 100),
+      ev('Backspace', 200),  // input back to empty; timer NOT reset
+      ev('h', 300),          // retype — timer still anchored at t=100
+      ev('i', 350),
+      ev(' ', 400),
+    ];
+    expect(computeWordTimingFromEvents(events)).toBe(300); // 400 - 100
+  });
+
+  test('timer starts on first character even when that character is incorrect', () => {
+    // Wrong first char at t=100 (criterion: incorrect chars still begin the attempt)
+    const events = [
+      ev('x', 100),          // wrong char — still starts the timer
+      ev('Backspace', 200),
+      ev('h', 300),          // correct retype
+      ev('i', 400),
+      ev(' ', 500),
+    ];
+    expect(computeWordTimingFromEvents(events)).toBe(400); // 500 - 100
+  });
+
+  test('returns 0 for an empty event sequence', () => {
+    expect(computeWordTimingFromEvents([])).toBe(0);
+  });
+
+  test('returns 0 when no completion space is present', () => {
+    const events = [ev('h', 100), ev('i', 200)];
+    expect(computeWordTimingFromEvents(events)).toBe(0);
   });
 });
 
