@@ -83,8 +83,7 @@ export default function TypingTest() {
   };
 
   const startNewTest = () => {
-    const wpmTarget = loadWpmTarget();
-    startTestWithWords(generateWordSet(wordCount, wpmTarget, globalWordStats, allWords));
+    startTestWithWords(generateWordSet(wordCount, globalWordStats, allWords));
   };
 
 
@@ -167,7 +166,7 @@ export default function TypingTest() {
   const finishTest = () => {
     const wpmTarget = loadWpmTarget();
     const updatedStats = calculateNewStats(wpmTarget);
-    const newWords = generateWordSet(wordCount, wpmTarget, updatedStats, allWords);
+    const newWords = generateWordSet(wordCount, updatedStats, allWords);
 
     saveWordStats(updatedStats);
     setGlobalWordStats(updatedStats);
@@ -227,8 +226,7 @@ export default function TypingTest() {
     resetAppData();
     const freshStats = createInitialWordStats();
     setGlobalWordStats(freshStats);
-    const wpmTarget = loadWpmTarget();
-    startTestWithWords(generateWordSet(wordCount, wpmTarget, freshStats, allWords));
+    startTestWithWords(generateWordSet(wordCount, freshStats, allWords));
   };
 
   return (
@@ -244,7 +242,6 @@ export default function TypingTest() {
         isOpen={isGraduatedSidebarOpen}
         wordStats={globalWordStats}
         toggleSidebar={() => setIsGraduatedSidebarOpen(!isGraduatedSidebarOpen)}
-        wpmTarget={loadWpmTarget()}
       />
       <div className={`flex-1 min-h-screen flex items-center transition-all duration-300 
         ${isSidebarOpen ? 'ml-64' : ''} 

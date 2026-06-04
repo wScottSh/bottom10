@@ -7,15 +7,14 @@ interface GraduatedSidebarProps {
   isOpen: boolean;
   wordStats: Record<string, WordStats>;
   toggleSidebar: () => void;
-  wpmTarget: number;
 }
 
-export default function GraduatedSidebar({ isOpen, wordStats, toggleSidebar, wpmTarget }: GraduatedSidebarProps) {
+export default function GraduatedSidebar({ isOpen, wordStats, toggleSidebar }: GraduatedSidebarProps) {
   const sortedWords = Object.entries(wordStats)
     .map(([word, stats]) => ({
       word,
       stats,
-      isGraduated: isGraduated(stats, wpmTarget)
+      isGraduated: isGraduated(stats)
     }))
     .filter(entry => entry.isGraduated)
     .sort((a, b) => a.stats.lastScore - b.stats.lastScore);  // Best performers first

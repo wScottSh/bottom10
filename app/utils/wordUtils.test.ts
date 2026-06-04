@@ -71,7 +71,7 @@ describe('selectWordsForTest', () => {
     for (const w of allWords) {
       wordStats[w] = { word: w, time: 0, attempts: 0, lastScore: 0 };
     }
-    const result = selectWordsForTest(wordStats, 40, 30, allWords);
+    const result = selectWordsForTest(wordStats, 30, allWords);
     // getTopWordsForTest returns 10 unscored words; distribution is built over them
     expect(result.length).toBeGreaterThan(0);
     // Worst word (first of top-10 unscored) gets floor(30*0.25)=7 reps
@@ -80,7 +80,6 @@ describe('selectWordsForTest', () => {
 
   test('returns repeated words list when scored words are present', () => {
     // Build stats with 3 scored words above graduation threshold (not graduated)
-    const wpm = 40;
     const wordStats: Record<string, WordStats> = {};
     for (const w of allWords) {
       wordStats[w] = { word: w, time: 0, attempts: 0, lastScore: 0 };
@@ -90,7 +89,7 @@ describe('selectWordsForTest', () => {
     wordStats['of'] = { word: 'of', time: 400, attempts: 1, lastScore: 400 };
     wordStats['and'] = { word: 'and', time: 350, attempts: 1, lastScore: 350 };
 
-    const result = selectWordsForTest(wordStats, wpm, 30, allWords);
+    const result = selectWordsForTest(wordStats, 30, allWords);
     // Should return a repeated word list (non-empty array built from frequency distribution)
     expect(result.length).toBeGreaterThan(0);
     // The worst word ('the' with score 500) should appear multiple times
@@ -99,7 +98,6 @@ describe('selectWordsForTest', () => {
   });
 
   test('excludes graduated words from selection', () => {
-    const wpm = 40;
     const wordStats: Record<string, WordStats> = {};
     for (const w of allWords) {
       wordStats[w] = { word: w, time: 0, attempts: 0, lastScore: 0 };
@@ -110,7 +108,7 @@ describe('selectWordsForTest', () => {
     // Non-graduated (above threshold)
     wordStats['and'] = { word: 'and', time: 400, attempts: 1, lastScore: 400 };
 
-    const result = selectWordsForTest(wordStats, wpm, 30, allWords);
+    const result = selectWordsForTest(wordStats, 30, allWords);
     expect(result).not.toContain('the');
     expect(result).not.toContain('of');
   });
@@ -121,7 +119,7 @@ describe('selectWordsForTest', () => {
     for (const w of allWords) {
       wordStats[w] = { word: w, time: 0, attempts: 0, lastScore: 0 };
     }
-    const result = selectWordsForTest(wordStats, 40, 10, allWords);
+    const result = selectWordsForTest(wordStats, 10, allWords);
     expect(Array.isArray(result)).toBe(true);
   });
 });
@@ -159,9 +157,9 @@ describe('normalized scoring seam', () => {
     expect(score).toBeLessThan(threshold);
     // Durable graduation requires 2 consecutive sub-threshold tests; one alone is not enough.
     const stats: WordStats = { word: 'hi', time: fastShortWordTime, attempts: 1, lastScore: score, consecutiveSubThreshold: 1 };
-    expect(isGraduated(stats, wpmTarget)).toBe(false);
+    expect(isGraduated(stats)).toBe(false);
     const statsGraduated: WordStats = { ...stats, consecutiveSubThreshold: 2 };
-    expect(isGraduated(statsGraduated, wpmTarget)).toBe(true);
+    expect(isGraduated(statsGraduated)).toBe(true);
   });
 });
 
@@ -184,13 +182,13 @@ describe('wordUtils', () => {
         is: { word: 'is', time: 0, attempts: 0, lastScore: 0 },
       };
 
-      getTopWordsForTest(wordStats, 60);
+      getTopWordsForTest(wordStats);
 
       expect(consoleSpy).not.toHaveBeenCalled();
     });
 
     it('produces no console.log output with an empty word list', () => {
-      getTopWordsForTest({}, 60);
+      getTopWordsForTest({});
       expect(consoleSpy).not.toHaveBeenCalled();
     });
 
@@ -200,7 +198,7 @@ describe('wordUtils', () => {
         the: { word: 'the', time: 100, attempts: 5, lastScore: threshold - 1 },
       };
 
-      getTopWordsForTest(wordStats, 60);
+      getTopWordsForTest(wordStats);
 
       expect(consoleSpy).not.toHaveBeenCalled();
     });
@@ -223,32 +221,32 @@ describe('wordUtils', () => {
       ({ word: 'hi', time: lastScore, attempts: 1, lastScore, consecutiveSubThreshold });
 
     it('returns false for unscored word (consecutiveSubThreshold=0)', () => {
-      expect(isGraduated(mkStats(0), 60)).toBe(false);
+      expect(isGraduated(mkStats(0))).toBe(false);
     });
 
     it('returns false after a single sub-threshold test (counter=1, not yet durable)', () => {
       const threshold = calculateGraduationThreshold(60); // 200ms
-      expect(isGraduated(mkStats(threshold - 1, 1), 60)).toBe(false);
+      expect(isGraduated(mkStats(threshold - 1, 1))).toBe(false);
     });
 
     it('returns true after two consecutive sub-threshold tests (counter=2)', () => {
       const threshold = calculateGraduationThreshold(60);
-      expect(isGraduated(mkStats(threshold - 1, 2), 60)).toBe(true);
+      expect(isGraduated(mkStats(threshold - 1, 2))).toBe(true);
     });
 
     it('returns false when score equals threshold', () => {
       const threshold = calculateGraduationThreshold(60);
-      expect(isGraduated(mkStats(threshold, 0), 60)).toBe(false);
+      expect(isGraduated(mkStats(threshold, 0))).toBe(false);
     });
 
     it('returns false when score exceeds threshold (slow word)', () => {
       const threshold = calculateGraduationThreshold(60);
-      expect(isGraduated(mkStats(threshold + 100, 0), 60)).toBe(false);
+      expect(isGraduated(mkStats(threshold + 100, 0))).toBe(false);
     });
 
     it('defaults missing consecutiveSubThreshold to 0 (pre-existing records not graduated)', () => {
       const stats = { word: 'hi', time: 100, attempts: 1, lastScore: 100 } as WordStats;
-      expect(isGraduated(stats, 60)).toBe(false);
+      expect(isGraduated(stats)).toBe(false);
     });
   });
 
@@ -259,7 +257,7 @@ describe('wordUtils', () => {
         wordStats[`word${i}`] = { word: `word${i}`, time: 500, attempts: 1, lastScore: 500 + i };
       }
 
-      const result = getTopWordsForTest(wordStats, 60);
+      const result = getTopWordsForTest(wordStats);
 
       expect(result.length).toBeLessThanOrEqual(10);
     });
@@ -271,7 +269,7 @@ describe('wordUtils', () => {
         slow: { word: 'slow', time: 500, attempts: 5, lastScore: 500, consecutiveSubThreshold: 0 },           // not graduated
       };
 
-      const result = getTopWordsForTest(wordStats, 60);
+      const result = getTopWordsForTest(wordStats);
 
       expect(result).not.toContain('fast');
       expect(result).toContain('slow');
@@ -284,7 +282,7 @@ describe('wordUtils', () => {
         unscored: { word: 'unscored', time: 0, attempts: 0, lastScore: 0 },
       };
 
-      const result = getTopWordsForTest(wordStats, 60);
+      const result = getTopWordsForTest(wordStats);
 
       expect(result[0]).toBe('worst');
       expect(result[1]).toBe('bad');
@@ -324,7 +322,7 @@ describe('computeWordElapsedTime', () => {
     expect(score).toBeLessThan(threshold);
     // After two consecutive sub-threshold tests the word is durably graduated
     const graduatedStats: WordStats = { word: 'hi', time: elapsed, attempts: 2, lastScore: score, consecutiveSubThreshold: 2 };
-    expect(isGraduated(graduatedStats, wpmTarget)).toBe(true);
+    expect(isGraduated(graduatedStats)).toBe(true);
 
     // With old switch-cost-inflated timing (500ms inter-word gap added), score is above threshold
     const oldElapsed = elapsed + 500;
@@ -348,12 +346,12 @@ describe('selectWorkingSet', () => {
     'as', 'was', 'with', 'be', 'by'];
 
   test('with no scored words, returns first maxSize untouched words in frequency order', () => {
-    const result = selectWorkingSet({}, 40, frequencyWords, 10);
+    const result = selectWorkingSet({}, frequencyWords, 10);
     expect(result).toEqual(frequencyWords.slice(0, 10));
   });
 
   test('with no scored words and fewer words than maxSize, returns all available', () => {
-    const result = selectWorkingSet({}, 40, ['the', 'of', 'and'], 10);
+    const result = selectWorkingSet({}, ['the', 'of', 'and'], 10);
     expect(result).toEqual(['the', 'of', 'and']);
   });
 
@@ -362,7 +360,7 @@ describe('selectWorkingSet', () => {
       the: { word: 'the', time: 500, attempts: 1, lastScore: 500 },
       of:  { word: 'of',  time: 400, attempts: 1, lastScore: 400 },
     };
-    const result = selectWorkingSet(wordStats, 40, frequencyWords, 10);
+    const result = selectWorkingSet(wordStats, frequencyWords, 10);
     // worst active word first
     expect(result[0]).toBe('the');
     expect(result[1]).toBe('of');
@@ -379,7 +377,7 @@ describe('selectWorkingSet', () => {
       the: { word: 'the', time: 100, attempts: 1, lastScore: 100, consecutiveSubThreshold: 2 }, // graduated
       of:  { word: 'of',  time: 500, attempts: 1, lastScore: 500, consecutiveSubThreshold: 0 }, // active
     };
-    const result = selectWorkingSet(wordStats, 40, frequencyWords, 10);
+    const result = selectWorkingSet(wordStats, frequencyWords, 10);
     expect(result).not.toContain('the');
     expect(result).toContain('of');
     expect(result.length).toBe(10);
@@ -391,7 +389,7 @@ describe('selectWorkingSet', () => {
     const wordStats: Record<string, WordStats> = {
       the: { word: 'the', time: 500, attempts: 1, lastScore: 500 },
     };
-    const result = selectWorkingSet(wordStats, 40, frequencyWords, 10);
+    const result = selectWorkingSet(wordStats, frequencyWords, 10);
     // 'the' is active — must appear in the result
     expect(result).toContain('the');
     // it occupies the first (worst-first) slot
@@ -402,7 +400,7 @@ describe('selectWorkingSet', () => {
     const wordStats: Record<string, WordStats> = {
       the: { word: 'the', time: 500, attempts: 1, lastScore: 500 },
     };
-    const result = selectWorkingSet(wordStats, 40, frequencyWords, 10);
+    const result = selectWorkingSet(wordStats, frequencyWords, 10);
     expect(result.length).toBeLessThanOrEqual(10);
     expect(result).toContain('the');
     // filled from untouched to pad to maxSize
@@ -416,7 +414,7 @@ describe('selectWorkingSet', () => {
       wordStats[w] = { word: w, time: 500 + i, attempts: 1, lastScore: 500 + i };
     }
     const allWords = Object.keys(wordStats);
-    const result = selectWorkingSet(wordStats, 40, allWords, 10);
+    const result = selectWorkingSet(wordStats, allWords, 10);
     expect(result.length).toBe(10);
   });
 
@@ -427,7 +425,7 @@ describe('selectWorkingSet', () => {
       wordStats[w] = { word: w, time: 500 + i, attempts: 1, lastScore: 500 + i };
     }
     const allWords = Object.keys(wordStats);
-    const result = selectWorkingSet(wordStats, 40, allWords, 10);
+    const result = selectWorkingSet(wordStats, allWords, 10);
     // worst word (word14, score 514) must be in result
     expect(result).toContain('word14');
     // best word (word0, score 500) is 15th-worst — should be excluded
@@ -436,7 +434,7 @@ describe('selectWorkingSet', () => {
 
   test('untouched words are drawn in English-frequency (allWords) order', () => {
     // No active words — all 10 slots filled from allWords in order
-    const result = selectWorkingSet({}, 40, frequencyWords, 5);
+    const result = selectWorkingSet({}, frequencyWords, 5);
     expect(result).toEqual(['the', 'of', 'and', 'to', 'in']);
   });
 });
@@ -456,7 +454,7 @@ describe('generateWordSet', () => {
       the: { time: 1000, attempts: 3, lastScore: 1000 }
     });
 
-    const result = generateWordSet(10, 40, stats, allWords);
+    const result = generateWordSet(10, stats, allWords);
 
     expect(result.length).toBeGreaterThan(0);
     expect(result).toContain('the');
@@ -470,7 +468,7 @@ describe('generateWordSet', () => {
     });
 
     // calling with freshly-computed updatedStats must reflect the new score immediately
-    const result = generateWordSet(10, 40, updatedStats, allWords);
+    const result = generateWordSet(10, updatedStats, allWords);
 
     expect(result).toContain('the');
   });
@@ -483,7 +481,7 @@ describe('generateWordSet', () => {
     });
 
     for (let i = 0; i < 5; i++) {
-      const result = generateWordSet(10, 40, stats, allWords);
+      const result = generateWordSet(10, stats, allWords);
       expect(result).not.toContain('the');
     }
   });
@@ -492,7 +490,7 @@ describe('generateWordSet', () => {
     const allWords = ['the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'it'];
     const stats = makeStats(allWords);
 
-    const result = generateWordSet(10, 40, stats, allWords);
+    const result = generateWordSet(10, stats, allWords);
 
     expect(result.length).toBeGreaterThan(0);
   });
@@ -512,7 +510,7 @@ describe('generateWordSet', () => {
       it:   { lastScore: 310 },
     });
 
-    const result = generateWordSet(50, 40, stats, allWords);
+    const result = generateWordSet(50, stats, allWords);
     expect(result.length).toBe(50);
   });
 });
@@ -639,21 +637,21 @@ describe('updateGraduationCounter', () => {
   test('a single sub-threshold test does not graduate the word', () => {
     const stats = mkStats(100, 0);
     const updated = updateGraduationCounter(stats, wpm);
-    expect(isGraduated(updated, wpm)).toBe(false);
+    expect(isGraduated(updated)).toBe(false);
   });
 
   test('two consecutive sub-threshold tests graduate the word', () => {
     const stats = mkStats(100, 1); // counter already at 1
     const updated = updateGraduationCounter(stats, wpm);
     expect(updated.consecutiveSubThreshold).toBe(2);
-    expect(isGraduated(updated, wpm)).toBe(true);
+    expect(isGraduated(updated)).toBe(true);
   });
 
   test('at-threshold result resets accumulated progress', () => {
     const stats = mkStats(300, 1); // was 1 away from graduating
     const updated = updateGraduationCounter(stats, wpm);
     expect(updated.consecutiveSubThreshold).toBe(0);
-    expect(isGraduated(updated, wpm)).toBe(false);
+    expect(isGraduated(updated)).toBe(false);
   });
 
   test('preserves other WordStats fields unchanged', () => {
