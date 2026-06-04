@@ -70,6 +70,7 @@ export default function TypingTest() {
     if (newWords.length === 0) return;
     setWords(newWords);
     setCurrentWordIndex(0);
+    setCurrentCharIndex(0);
     setCorrectWords(0);
     setCurrentInput('');
     setTypedWordsData([]);
