@@ -48,6 +48,14 @@ export const computeWordTimingFromEvents = (events: KeystrokeEvent[]): number =>
   return 0;
 };
 
+// Converts a stored lastScore (ms/char) to WPM for display. This is the inverse of
+// calculateGraduationThreshold: both treat a word as a 5-char standard word.
+export const scoreToWpm = (lastScore: number): number => {
+  const totalTimeInMilliseconds = 60000;
+  const avgCharsPerWord = 5;
+  return Math.round(totalTimeInMilliseconds / avgCharsPerWord / lastScore);
+};
+
 export const calculateGraduationThreshold = (wpm: number): number => {
   const totalTimeInMilliseconds = 60000;
   const avgCharsPerWord = 5;
