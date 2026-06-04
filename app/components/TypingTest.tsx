@@ -163,6 +163,21 @@ export default function TypingTest() {
 
     setCurrentInput(value);
     setCurrentCharIndex(value.length);
+
+    const isLastWord = currentWordIndex + 1 === words.length;
+    const wordComplete = value === currentWord;
+
+    if (isLastWord && wordComplete) {
+      wordEventsRef.current.push({ key: ' ', timestamp });
+      const elapsed = computeWordTimingFromEvents(wordEventsRef.current);
+      setTypedWordsData(prev => [
+        ...prev,
+        { word: currentWord, time: elapsed, errors: isWordErrored ? 1 : 0 }
+      ]);
+      finishTest();
+      return;
+    }
+
     if (hasError && value === currentWord.slice(0, value.length)) {
       setHasError(false);
     }
