@@ -372,6 +372,43 @@ describe('computeWordElapsedTime', () => {
     // Elapsed is measured from the first char (t=100), not from the retype.
     expect(computeWordElapsedTime(100, 400)).toBe(300); // 400 - 100
   });
+
+  test('score is identical regardless of how long the user paused before starting the word', () => {
+    // User story #5: a hesitation between words must not penalize the word that follows.
+    const cadenceMs = 100; // 100ms per character
+    const word = 'hi';     // length 2
+
+    // No pause: started immediately
+    const elapsedNoPause = computeWordElapsedTime(0, cadenceMs * word.length);
+    const scoreNoPause = calculateNormalizedScore(elapsedNoPause, word.length);
+
+    // Long pause (2 s) before first character
+    const pauseMs = 2000;
+    const elapsedWithPause = computeWordElapsedTime(pauseMs, pauseMs + cadenceMs * word.length);
+    const scoreWithPause = calculateNormalizedScore(elapsedWithPause, word.length);
+
+    expect(scoreNoPause).toBe(cadenceMs);
+    expect(scoreWithPause).toBe(cadenceMs);
+    expect(scoreNoPause).toBe(scoreWithPause);
+  });
+
+  test('first and non-first words in a test produce equal scores at equal cadence', () => {
+    // User story #6: every word is measured consistently regardless of position.
+    const cadenceMs = 80;
+    const word = 'abc'; // length 3
+
+    // First word (t=0 arbitrary start)
+    const firstWordStart = 1000;
+    const firstWordElapsed = computeWordElapsedTime(firstWordStart, firstWordStart + cadenceMs * word.length);
+
+    // Second word — user paused 500ms between words
+    const secondWordStart = firstWordStart + cadenceMs * word.length + 500;
+    const secondWordElapsed = computeWordElapsedTime(secondWordStart, secondWordStart + cadenceMs * word.length);
+
+    expect(firstWordElapsed).toBe(cadenceMs * word.length);
+    expect(secondWordElapsed).toBe(cadenceMs * word.length);
+    expect(firstWordElapsed).toBe(secondWordElapsed);
+  });
 });
 
 describe('selectWorkingSet', () => {
