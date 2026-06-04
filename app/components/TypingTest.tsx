@@ -235,6 +235,15 @@ export default function TypingTest() {
     startNewTest();
   };
 
+  // Class for a word span: the current word turns red once it's errored,
+  // already-typed words are marked completed, and upcoming words get nothing.
+  const getWordClassName = (wordIndex: number) => {
+    if (wordIndex === currentWordIndex) {
+      return isWordErrored ? 'current error' : 'current';
+    }
+    return wordIndex < currentWordIndex ? 'completed' : '';
+  };
+
   const handleResetProgress = () => {
     resetAppData();
     const freshStats = createInitialWordStats();
@@ -297,11 +306,7 @@ export default function TypingTest() {
             {words.map((word, wordIndex) => (
               <span
                 key={wordIndex}
-                className={`word ${
-                  wordIndex === currentWordIndex
-                    ? 'current' + (isWordErrored ? ' error' : '')
-                    : wordIndex < currentWordIndex ? 'completed' : ''
-                }`}
+                className={`word ${getWordClassName(wordIndex)}`}
               >
                 {word.split('').map((char, charIndex) => {
                   let charClass = '';
