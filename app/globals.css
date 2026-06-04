@@ -87,6 +87,14 @@ label {
   vertical-align: bottom;
 }
 
+.char-correct {
+  color: var(--accent);
+}
+
+.char-error {
+  color: var(--error);
+}
+
 /* Sidebar styles */
 .sidebar {
   scrollbar-width: thin;
