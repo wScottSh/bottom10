@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
@@ -19,12 +19,10 @@ export default function TypingTest() {
   const [globalWordStats, setGlobalWordStats] = useState(createInitialWordStats);
 
   const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(true);
-  const [allWords, setAllWords] = useState<string[]>(wordList);
   const [words, setWords] = useState<string[]>([]);
   const [currentInput, setCurrentInput] = useState('');
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [correctWords, setCorrectWords] = useState<number>(0);
-  const [startTime, setStartTime] = useState<number>(Date.now());
   const [testEnded, setTestEnded] = useState<boolean>(false);
   // Accumulates keystroke events for the current word; cleared on word advance.
   // Passed to computeWordTimingFromEvents which owns the first-char timing decision.
@@ -41,6 +39,27 @@ export default function TypingTest() {
   const [testStarted, setTestStarted] = useState(false);
   const [wordCount, setWordCount] = useState<number>(50);
 
+  // Load a freshly generated word set and reset all per-test state.
+  const startTestWithWords = useCallback((newWords: string[]) => {
+    if (newWords.length === 0) return;
+    setWords(newWords);
+    setCurrentWordIndex(0);
+    setCurrentCharIndex(0);
+    setCorrectWords(0);
+    setCurrentInput('');
+    setTypedWordsData([]);
+    setTestEnded(false);
+    wordEventsRef.current = [];
+    setTestStarted(false);
+    setHasError(false);
+    setIsWordErrored(false);
+    inputRef.current?.focus();
+  }, []);
+
+  const startNewTest = useCallback(() => {
+    startTestWithWords(generateWordSet(wordCount, globalWordStats, wordList));
+  }, [wordCount, globalWordStats, startTestWithWords]);
+
   useEffect(() => {
     startNewTest();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -55,7 +74,7 @@ export default function TypingTest() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [testEnded]);
+  }, [testEnded, startNewTest]);
 
   useEffect(() => {
     const savedStats = loadWordStats();
@@ -63,30 +82,6 @@ export default function TypingTest() {
       setGlobalWordStats(savedStats);
     }
   }, []);
-
-
-  // Load a freshly generated word set and reset all per-test state.
-  const startTestWithWords = (newWords: string[]) => {
-    if (newWords.length === 0) return;
-    setWords(newWords);
-    setCurrentWordIndex(0);
-    setCurrentCharIndex(0);
-    setCorrectWords(0);
-    setCurrentInput('');
-    setTypedWordsData([]);
-    setTestEnded(false);
-    setStartTime(Date.now());
-    wordEventsRef.current = [];
-    setTestStarted(false);
-    setHasError(false);
-    setIsWordErrored(false);
-    inputRef.current?.focus();
-  };
-
-  const startNewTest = () => {
-    startTestWithWords(generateWordSet(wordCount, globalWordStats, allWords));
-  };
-
 
   // Records timing/error data for a completed word. The synthetic space event
   // ends the word's timing window; computeWordTimingFromEvents owns the timing.
@@ -182,7 +177,7 @@ export default function TypingTest() {
   const finishTest = () => {
     const wpmTarget = loadWpmTarget();
     const updatedStats = calculateNewStats(wpmTarget);
-    const newWords = generateWordSet(wordCount, updatedStats, allWords);
+    const newWords = generateWordSet(wordCount, updatedStats, wordList);
 
     saveWordStats(updatedStats);
     setGlobalWordStats(updatedStats);
@@ -234,7 +229,7 @@ export default function TypingTest() {
     </div>
   );
 
-  const handleWpmChange = (newWpm: number) => {
+  const handleWpmChange = () => {
     startNewTest();
   };
 
@@ -242,7 +237,7 @@ export default function TypingTest() {
     resetAppData();
     const freshStats = createInitialWordStats();
     setGlobalWordStats(freshStats);
-    startTestWithWords(generateWordSet(wordCount, freshStats, allWords));
+    startTestWithWords(generateWordSet(wordCount, freshStats, wordList));
   };
 
   return (
