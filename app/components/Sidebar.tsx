@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, KeyboardEvent } from 'react';
-import { WordStats, isGraduated } from '../utils/wordUtils';
+import { WordStats, isGraduated, scoreToWpm } from '../utils/wordUtils';
 import { loadWpmTarget, saveWpmTarget } from '../utils/persistence';
 
 interface SidebarProps {
@@ -103,7 +103,7 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange 
                 </span>
                 {stats.lastScore > 0 && (
                   <span className={`${isGraduated ? 'text-green-500' : 'text-[#e2b714]'}`}>
-                    {Math.round(stats.lastScore)}
+                    {scoreToWpm(stats.lastScore)} wpm
                   </span>
                 )}
               </div>

@@ -48,6 +48,10 @@ export const computeWordTimingFromEvents = (events: KeystrokeEvent[]): number =>
   return 0;
 };
 
+// Converts a stored lastScore (ms/char) to WPM for display.
+// lastScore = avgTime_ms / wordLength; using a 5-char standard word: wpm = 12000 / lastScore
+export const scoreToWpm = (lastScore: number): number => Math.round(12000 / lastScore);
+
 export const calculateGraduationThreshold = (wpm: number): number => {
   const totalTimeInMilliseconds = 60000;
   const avgCharsPerWord = 5;

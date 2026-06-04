@@ -12,6 +12,7 @@ import {
   getTopWordsForTest,
   computeWordElapsedTime,
   computeWordTimingFromEvents,
+  scoreToWpm,
   KeystrokeEvent,
   WordStats,
 } from './wordUtils';
@@ -835,5 +836,27 @@ describe('updateGraduationCounter', () => {
     const stats = { word: 'hi', time: 100, attempts: 1, lastScore: 100 } as WordStats;
     const updated = updateGraduationCounter(stats, wpm);
     expect(updated.consecutiveSubThreshold).toBe(1); // treated as 0, then incremented
+  });
+});
+
+describe('scoreToWpm', () => {
+  // lastScore = avgTime_ms / wordLength; wpm = 12000 / lastScore
+  it('converts 300 ms/char to 40 wpm', () => {
+    expect(scoreToWpm(300)).toBe(40);
+  });
+
+  it('converts 200 ms/char to 60 wpm', () => {
+    expect(scoreToWpm(200)).toBe(60);
+  });
+
+  it('converts 120 ms/char to 100 wpm', () => {
+    expect(scoreToWpm(120)).toBe(100);
+  });
+
+  it('rounds to the nearest integer', () => {
+    // 12000 / 250 = 48 exactly
+    expect(scoreToWpm(250)).toBe(48);
+    // 12000 / 350 ≈ 34.28 → rounds to 34
+    expect(scoreToWpm(350)).toBe(34);
   });
 });
