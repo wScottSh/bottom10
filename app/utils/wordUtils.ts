@@ -49,6 +49,37 @@ export const getTopWordsForTest = (wordStats: Record<string, WordStats>, wpm: nu
   return sortedCandidates.slice(0, 10).map(entry => entry.word);
 };
 
+// Returns the working set: worst non-graduated words up to maxSize, with remaining
+// slots filled from untouched words (never scored) in English-frequency order.
+// A scored, non-graduated word stays sticky until it graduates — it never returns
+// to the untouched pool.
+export const selectWorkingSet = (
+  wordStats: Record<string, WordStats>,
+  wpmTarget: number,
+  allWords: string[],
+  maxSize: number = 10
+): string[] => {
+  // Active: scored (lastScore > 0) and not yet graduated
+  const active = Object.entries(wordStats)
+    .filter(([, stats]) => stats.lastScore > 0 && !isGraduated(stats.lastScore, wpmTarget))
+    .sort((a, b) => b[1].lastScore - a[1].lastScore) // worst first
+    .map(([word]) => word)
+    .slice(0, maxSize);
+
+  if (active.length >= maxSize) return active;
+
+  // Fill remaining slots from untouched words (never scored) in frequency order
+  const scoredWords = new Set(
+    Object.entries(wordStats)
+      .filter(([, stats]) => stats.lastScore > 0)
+      .map(([word]) => word)
+  );
+  const slotsLeft = maxSize - active.length;
+  const untouched = allWords.filter(w => !scoredWords.has(w)).slice(0, slotsLeft);
+
+  return [...active, ...untouched];
+};
+
 export const shuffleArray = (array: string[]): string[] => {
   return [...array].sort(() => Math.random() - 0.5);
 };

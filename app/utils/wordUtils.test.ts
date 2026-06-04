@@ -3,6 +3,7 @@ import {
   generateFrequencyDistribution,
   selectWordsForTest,
   generateWordSet,
+  selectWorkingSet,
   calculateNormalizedScore,
   calculateGraduationThreshold,
   isGraduated,
@@ -318,6 +319,104 @@ describe('computeWordElapsedTime', () => {
     // Original first char at t=100; user backspaces and retypes, completing at t=400.
     // Elapsed is measured from the first char (t=100), not from the retype.
     expect(computeWordElapsedTime(100, 400)).toBe(300); // 400 - 100
+  });
+});
+
+describe('selectWorkingSet', () => {
+  const frequencyWords = ['the', 'of', 'and', 'to', 'in', 'a', 'is', 'that', 'for', 'it',
+    'as', 'was', 'with', 'be', 'by'];
+
+  test('with no scored words, returns first maxSize untouched words in frequency order', () => {
+    const result = selectWorkingSet({}, 40, frequencyWords, 10);
+    expect(result).toEqual(frequencyWords.slice(0, 10));
+  });
+
+  test('with no scored words and fewer words than maxSize, returns all available', () => {
+    const result = selectWorkingSet({}, 40, ['the', 'of', 'and'], 10);
+    expect(result).toEqual(['the', 'of', 'and']);
+  });
+
+  test('scored non-graduated words fill first slots worst-first, untouched fill remainder', () => {
+    const wordStats: Record<string, WordStats> = {
+      the: { word: 'the', time: 500, attempts: 1, lastScore: 500 },
+      of:  { word: 'of',  time: 400, attempts: 1, lastScore: 400 },
+    };
+    const result = selectWorkingSet(wordStats, 40, frequencyWords, 10);
+    // worst active word first
+    expect(result[0]).toBe('the');
+    expect(result[1]).toBe('of');
+    // remaining 8 slots filled from untouched in frequency order
+    expect(result.length).toBe(10);
+    // 'the' and 'of' are scored; next untouched in frequencyWords is 'and'
+    expect(result[2]).toBe('and');
+    expect(result[3]).toBe('to');
+  });
+
+  test('graduated words excluded; their slots filled from untouched in frequency order', () => {
+    // threshold at 40wpm = 300ms; lastScore: 100 < 300 => graduated
+    const wordStats: Record<string, WordStats> = {
+      the: { word: 'the', time: 100, attempts: 1, lastScore: 100 }, // graduated
+      of:  { word: 'of',  time: 500, attempts: 1, lastScore: 500 }, // active
+    };
+    const result = selectWorkingSet(wordStats, 40, frequencyWords, 10);
+    expect(result).not.toContain('the');
+    expect(result).toContain('of');
+    expect(result.length).toBe(10);
+    // slot freed by 'the' filled from untouched ('and' is next after 'the','of' in frequencyWords)
+    expect(result).toContain('and');
+  });
+
+  test('non-graduated scored word is never returned to untouched pool', () => {
+    const wordStats: Record<string, WordStats> = {
+      the: { word: 'the', time: 500, attempts: 1, lastScore: 500 },
+    };
+    const result = selectWorkingSet(wordStats, 40, frequencyWords, 10);
+    // 'the' is active — must appear in the result
+    expect(result).toContain('the');
+    // it occupies the first (worst-first) slot
+    expect(result[0]).toBe('the');
+  });
+
+  test('with fewer than maxSize non-graduated words, fills from untouched without error', () => {
+    const wordStats: Record<string, WordStats> = {
+      the: { word: 'the', time: 500, attempts: 1, lastScore: 500 },
+    };
+    const result = selectWorkingSet(wordStats, 40, frequencyWords, 10);
+    expect(result.length).toBeLessThanOrEqual(10);
+    expect(result).toContain('the');
+    // filled from untouched to pad to maxSize
+    expect(result.length).toBeGreaterThan(1);
+  });
+
+  test('caps result at maxSize even when more active words exist', () => {
+    const wordStats: Record<string, WordStats> = {};
+    for (let i = 0; i < 15; i++) {
+      const w = `word${i}`;
+      wordStats[w] = { word: w, time: 500 + i, attempts: 1, lastScore: 500 + i };
+    }
+    const allWords = Object.keys(wordStats);
+    const result = selectWorkingSet(wordStats, 40, allWords, 10);
+    expect(result.length).toBe(10);
+  });
+
+  test('selects the worst (highest score) active words when capped at maxSize', () => {
+    const wordStats: Record<string, WordStats> = {};
+    for (let i = 0; i < 15; i++) {
+      const w = `word${i}`;
+      wordStats[w] = { word: w, time: 500 + i, attempts: 1, lastScore: 500 + i };
+    }
+    const allWords = Object.keys(wordStats);
+    const result = selectWorkingSet(wordStats, 40, allWords, 10);
+    // worst word (word14, score 514) must be in result
+    expect(result).toContain('word14');
+    // best word (word0, score 500) is 15th-worst — should be excluded
+    expect(result).not.toContain('word0');
+  });
+
+  test('untouched words are drawn in English-frequency (allWords) order', () => {
+    // No active words — all 10 slots filled from allWords in order
+    const result = selectWorkingSet({}, 40, frequencyWords, 5);
+    expect(result).toEqual(['the', 'of', 'and', 'to', 'in']);
   });
 });
 
