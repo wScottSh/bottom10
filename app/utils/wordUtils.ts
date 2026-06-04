@@ -138,6 +138,44 @@ export const shuffleArray = (array: string[]): string[] => {
   return [...array].sort(() => Math.random() - 0.5);
 };
 
+// Rearranges arr in-place so no two adjacent elements are equal.
+// Uses a greedy frequency-first strategy: always place the remaining word
+// with the highest count that differs from the previous word. Gives up
+// gracefully when one word dominates more than half the slots — a single
+// run of identical words may survive in that edge case.
+export const dedupeAdjacent = (array: string[]): string[] => {
+  if (array.length <= 1) return array;
+
+  const freq = new Map<string, number>();
+  for (const w of array) freq.set(w, (freq.get(w) ?? 0) + 1);
+
+  const result: string[] = [];
+  let prev = '';
+
+  for (let i = 0; i < array.length; i++) {
+    let bestWord = '';
+    let bestCount = 0;
+    for (const [word, count] of freq) {
+      if (word !== prev && count > bestCount) {
+        bestWord = word;
+        bestCount = count;
+      }
+    }
+    if (!bestWord) {
+      // One word dominates — take whatever is left
+      bestWord = freq.keys().next().value as string;
+    }
+    result.push(bestWord);
+    prev = bestWord;
+    const remaining = freq.get(bestWord)! - 1;
+    if (remaining === 0) freq.delete(bestWord);
+    else freq.set(bestWord, remaining);
+  }
+
+  for (let i = 0; i < result.length; i++) array[i] = result[i];
+  return array;
+};
+
 // Builds a convex score-weighted distribution of N reps across scored words.
 // entries must be sorted worst-first (highest score first); all scores must be > 0.
 // Each word's share is proportional to shape(t) = t² where
@@ -330,5 +368,5 @@ export const generateWordSet = (
     wordsForTest = shuffleArray(filterNonGraduated(allWords, wordStats)).slice(0, count);
   }
 
-  return wordsForTest;
+  return dedupeAdjacent(wordsForTest);
 };

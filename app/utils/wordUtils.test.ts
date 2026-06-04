@@ -13,6 +13,7 @@ import {
   computeWordElapsedTime,
   computeWordTimingFromEvents,
   scoreToWpm,
+  dedupeAdjacent,
   KeystrokeEvent,
   WordStats,
 } from './wordUtils';
@@ -892,5 +893,83 @@ describe('scoreToWpm', () => {
     expect(scoreToWpm(250)).toBe(48);
     // 12000 / 350 ≈ 34.28 → rounds to 34
     expect(scoreToWpm(350)).toBe(34);
+  });
+});
+
+describe('dedupeAdjacent', () => {
+  const hasAdjacentDupe = (arr: string[]) =>
+    arr.some((w, i) => i > 0 && w === arr[i - 1]);
+
+  it('returns the same array reference (in-place mutation)', () => {
+    const arr = ['a', 'a', 'b'];
+    const result = dedupeAdjacent(arr);
+    expect(result).toBe(arr);
+  });
+
+  it('removes adjacent duplicates from a simple sequence', () => {
+    const arr = ['a', 'a', 'b', 'b', 'c'];
+    dedupeAdjacent(arr);
+    expect(hasAdjacentDupe(arr)).toBe(false);
+  });
+
+  it('leaves a list with no adjacent duplicates unchanged', () => {
+    const arr = ['a', 'b', 'a', 'b'];
+    const copy = [...arr];
+    dedupeAdjacent(arr);
+    expect(arr).toEqual(copy);
+  });
+
+  it('handles an empty array without throwing', () => {
+    expect(() => dedupeAdjacent([])).not.toThrow();
+  });
+
+  it('handles a single-element array without throwing', () => {
+    const arr = ['a'];
+    dedupeAdjacent(arr);
+    expect(arr).toEqual(['a']);
+  });
+
+  it('handles all-same array gracefully (gives up rather than looping forever)', () => {
+    const arr = ['a', 'a', 'a', 'a'];
+    expect(() => dedupeAdjacent(arr)).not.toThrow();
+    // Can't eliminate all duplicates when one word dominates — that's acceptable
+  });
+
+  it('eliminates all adjacent duplicates when a valid arrangement exists', () => {
+    const arr = ['x', 'x', 'x', 'y', 'y', 'z'];
+    dedupeAdjacent(arr);
+    expect(hasAdjacentDupe(arr)).toBe(false);
+  });
+
+  it('preserves all elements (no words added or removed)', () => {
+    const arr = ['a', 'a', 'b', 'b', 'c', 'c'];
+    const before = [...arr].sort();
+    dedupeAdjacent(arr);
+    expect([...arr].sort()).toEqual(before);
+  });
+});
+
+describe('generateWordSet — no adjacent duplicates', () => {
+  const hasAdjacentDupe = (arr: string[]) =>
+    arr.some((w, i) => i > 0 && w === arr[i - 1]);
+
+  it('produced list has no adjacent identical words (scored path)', () => {
+    const allWords = ['the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'it'];
+    const stats: Record<string, WordStats> = {};
+    for (const w of allWords) {
+      stats[w] = { word: w, time: 500, attempts: 3, lastScore: 500 };
+    }
+    for (let i = 0; i < 10; i++) {
+      const result = generateWordSet(30, stats, allWords);
+      expect(hasAdjacentDupe(result)).toBe(false);
+    }
+  });
+
+  it('produced list has no adjacent identical words (unscored / first-session path)', () => {
+    const allWords = Array.from({ length: 10 }, (_, i) => `word${i}`);
+    for (let i = 0; i < 10; i++) {
+      const result = generateWordSet(30, {}, allWords);
+      expect(hasAdjacentDupe(result)).toBe(false);
+    }
   });
 });
