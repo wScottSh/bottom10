@@ -88,6 +88,17 @@ export default function TypingTest() {
   };
 
 
+  // Records timing/error data for a completed word. The synthetic space event
+  // ends the word's timing window; computeWordTimingFromEvents owns the timing.
+  const recordCompletedWord = (currentWord: string, timestamp: number) => {
+    wordEventsRef.current.push({ key: ' ', timestamp });
+    const elapsed = computeWordTimingFromEvents(wordEventsRef.current);
+    setTypedWordsData(prev => [
+      ...prev,
+      { word: currentWord, time: elapsed, errors: isWordErrored ? 1 : 0 }
+    ]);
+  };
+
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (testEnded) return;
 
@@ -102,17 +113,7 @@ export default function TypingTest() {
 
     if (value.endsWith(' ')) {
       if (value.trim() === currentWord) {
-        wordEventsRef.current.push({ key: ' ', timestamp });
-        const elapsed = computeWordTimingFromEvents(wordEventsRef.current);
-
-        setTypedWordsData(prev => [
-          ...prev,
-          {
-            word: currentWord,
-            time: elapsed,
-            errors: isWordErrored ? 1 : 0
-          }
-        ]);
+        recordCompletedWord(currentWord, timestamp);
 
         if (currentWordIndex + 1 === words.length) {
           finishTest();
@@ -168,12 +169,7 @@ export default function TypingTest() {
     const wordComplete = value === currentWord;
 
     if (isLastWord && wordComplete) {
-      wordEventsRef.current.push({ key: ' ', timestamp });
-      const elapsed = computeWordTimingFromEvents(wordEventsRef.current);
-      setTypedWordsData(prev => [
-        ...prev,
-        { word: currentWord, time: elapsed, errors: isWordErrored ? 1 : 0 }
-      ]);
+      recordCompletedWord(currentWord, timestamp);
       finishTest();
       return;
     }
