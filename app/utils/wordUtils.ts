@@ -152,7 +152,7 @@ export const dedupeAdjacent = (array: string[]): string[] => {
   const result: string[] = [];
   let prev = '';
 
-  for (let i = 0; i < array.length; i++) {
+  while (result.length < array.length) {
     let bestWord = '';
     let bestCount = 0;
     for (const [word, count] of freq) {
@@ -162,7 +162,7 @@ export const dedupeAdjacent = (array: string[]): string[] => {
       }
     }
     if (!bestWord) {
-      // One word dominates — take whatever is left
+      // Only the previous word is left — take it, accepting one adjacent dupe.
       bestWord = freq.keys().next().value as string;
     }
     result.push(bestWord);
