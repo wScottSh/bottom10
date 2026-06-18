@@ -5,7 +5,7 @@ import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
 import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
-import { generateWordSet, calculateNormalizedScore, computeWordTimingFromEvents, computeWpmParticle, KeystrokeEvent, updateGraduationCounter, WordStats } from '../utils/wordUtils';
+import { generateWordSet, computeWordTimingFromEvents, computeWpmParticle, KeystrokeEvent, applySessionToStats, WordStats } from '../utils/wordUtils';
 import { TypingSessionState, applyKeystroke } from '../utils/typingSession';
 import { loadWordStats, saveWordStats, loadWpmTarget, resetAppData } from '../utils/persistence';
 
@@ -175,40 +175,12 @@ export default function TypingTest() {
 
   const finishTest = () => {
     const wpmTarget = loadWpmTarget();
-    const updatedStats = calculateNewStats(wpmTarget);
+    const updatedStats = applySessionToStats(globalWordStats, typedWordsData, wpmTarget);
     const newWords = generateWordSet(wordCount, updatedStats, wordList);
 
     saveWordStats(updatedStats);
     setGlobalWordStats(updatedStats);
     startTestWithWords(newWords);
-  };
-
-  const calculateNewStats = (wpmTarget: number) => {
-    const updatedStats = { ...globalWordStats };
-
-    const wordGroups = typedWordsData.reduce((acc, { word, time }) => {
-      if (!acc[word]) {
-        acc[word] = { totalTime: 0, count: 0 };
-      }
-      acc[word].totalTime += time;
-      acc[word].count += 1;
-      return acc;
-    }, {} as Record<string, { totalTime: number; count: number; }>);
-
-    Object.entries(wordGroups).forEach(([word, { totalTime, count }]) => {
-      const avgTime = totalTime / count;
-      const normalizedScore = calculateNormalizedScore(avgTime, word.length);
-
-      const withNewScore: WordStats = {
-        ...updatedStats[word],
-        time: avgTime,
-        attempts: (updatedStats[word]?.attempts || 0) + 1,
-        lastScore: normalizedScore,
-      };
-      updatedStats[word] = updateGraduationCounter(withNewScore, wpmTarget);
-    });
-
-    return updatedStats;
   };
 
   const toggleSettings = () => {

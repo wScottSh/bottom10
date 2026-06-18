@@ -13,6 +13,7 @@ import {
   scoreToWpm,
   computeWpmParticle,
   dedupeAdjacent,
+  applySessionToStats,
   KeystrokeEvent,
   WordStats,
 } from './wordUtils';
@@ -911,5 +912,79 @@ describe('computeWpmParticle', () => {
     const expected = scoreToWpm(calculateNormalizedScore(elapsed, wordLength));
     const { wpm } = computeWpmParticle(elapsed, wordLength, WPM_TARGET);
     expect(wpm).toBe(expected);
+  });
+});
+
+describe('applySessionToStats', () => {
+  const wpmTarget = 40; // threshold = 300 ms/char
+
+  const baseStats = (words: string[]): Record<string, WordStats> => {
+    const stats: Record<string, WordStats> = {};
+    for (const w of words) {
+      stats[w] = { word: w, time: 0, attempts: 0, lastScore: 0 };
+    }
+    return stats;
+  };
+
+  test('increments attempts by 1 for each typed word', () => {
+    const stats = baseStats(['the', 'and']);
+    const typedWords = [
+      { word: 'the', time: 500, errors: 0 },
+    ];
+    const result = applySessionToStats(stats, typedWords, wpmTarget);
+    expect(result['the'].attempts).toBe(1);
+    expect(result['and'].attempts).toBe(0); // untouched
+  });
+
+  test('averages time when the same word is typed multiple times in one session', () => {
+    const stats = baseStats(['the']);
+    const typedWords = [
+      { word: 'the', time: 200, errors: 0 },
+      { word: 'the', time: 400, errors: 0 },
+    ];
+    const result = applySessionToStats(stats, typedWords, wpmTarget);
+    // avg = (200 + 400) / 2 = 300; attempts only incremented once (per word group)
+    expect(result['the'].time).toBe(300);
+    expect(result['the'].attempts).toBe(1);
+  });
+
+  test('updates lastScore to the normalized score of the averaged time', () => {
+    const stats = baseStats(['hi']);
+    const typedWords = [{ word: 'hi', time: 400, errors: 0 }]; // 400 / 2 = 200 ms/char
+    const result = applySessionToStats(stats, typedWords, wpmTarget);
+    expect(result['hi'].lastScore).toBe(calculateNormalizedScore(400, 2));
+  });
+
+  test('runs updateGraduationCounter: sub-threshold word increments consecutiveSubThreshold', () => {
+    const stats = baseStats(['hi']);
+    // wpmTarget=40 → threshold=300ms/char; 100ms/char is sub-threshold
+    const typedWords = [{ word: 'hi', time: 100 * 2, errors: 0 }]; // 100 ms/char
+    const result = applySessionToStats(stats, typedWords, wpmTarget);
+    expect(result['hi'].consecutiveSubThreshold).toBe(1);
+    expect(isGraduated(result['hi'])).toBe(false);
+  });
+
+  test('runs updateGraduationCounter: two consecutive sub-threshold results graduate the word', () => {
+    const stats: Record<string, WordStats> = {
+      hi: { word: 'hi', time: 100, attempts: 1, lastScore: 100, consecutiveSubThreshold: 1 },
+    };
+    const typedWords = [{ word: 'hi', time: 100 * 2, errors: 0 }]; // sub-threshold again
+    const result = applySessionToStats(stats, typedWords, wpmTarget);
+    expect(isGraduated(result['hi'])).toBe(true);
+  });
+
+  test('untouched word stays identical (same object values)', () => {
+    const stats = baseStats(['the', 'and']);
+    const typedWords = [{ word: 'the', time: 300, errors: 0 }];
+    const result = applySessionToStats(stats, typedWords, wpmTarget);
+    expect(result['and']).toEqual(stats['and']);
+  });
+
+  test('does not mutate the input stats object', () => {
+    const stats = baseStats(['the']);
+    const statsBefore = { ...stats, the: { ...stats['the'] } };
+    const typedWords = [{ word: 'the', time: 500, errors: 0 }];
+    applySessionToStats(stats, typedWords, wpmTarget);
+    expect(stats['the']).toEqual(statsBefore['the']);
   });
 });

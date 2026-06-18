@@ -103,6 +103,38 @@ export const updateGraduationCounter = (stats: WordStats, wpm: number): WordStat
   };
 };
 
+// Applies a finished session's typed words to the durable stats map.
+// Groups repeated words and averages their times; bumps attempts once per word group;
+// runs the graduation counter. Does not mutate the input stats object.
+export const applySessionToStats = (
+  stats: Record<string, WordStats>,
+  typedWords: { word: string; time: number; errors: number }[],
+  wpmTarget: number
+): Record<string, WordStats> => {
+  const updatedStats = { ...stats };
+
+  const wordGroups = typedWords.reduce((acc, { word, time }) => {
+    if (!acc[word]) acc[word] = { totalTime: 0, count: 0 };
+    acc[word].totalTime += time;
+    acc[word].count += 1;
+    return acc;
+  }, {} as Record<string, { totalTime: number; count: number }>);
+
+  Object.entries(wordGroups).forEach(([word, { totalTime, count }]) => {
+    const avgTime = totalTime / count;
+    const normalizedScore = calculateNormalizedScore(avgTime, word.length);
+    const withNewScore: WordStats = {
+      ...updatedStats[word],
+      time: avgTime,
+      attempts: (updatedStats[word]?.attempts || 0) + 1,
+      lastScore: normalizedScore,
+    };
+    updatedStats[word] = updateGraduationCounter(withNewScore, wpmTarget);
+  });
+
+  return updatedStats;
+};
+
 // Number of distinct words in a test's working set: the worst non-graduated
 // words are repeated across the test rather than drawing many unique words.
 export const WORKING_SET_SIZE = 10;
