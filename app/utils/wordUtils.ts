@@ -56,6 +56,19 @@ export const scoreToWpm = (lastScore: number): number => {
   return Math.round(totalTimeInMilliseconds / avgCharsPerWord / lastScore);
 };
 
+// Pure decision function for WPM particles: computes the per-word WPM for a single
+// completion and determines whether it met the WPM target (green) or fell short (red).
+// Uses the same scoring pipeline as the stored stats so the particle and sidebar can
+// never disagree. Equal-to-target counts as fast (the same bar that drives graduation).
+export const computeWpmParticle = (
+  elapsed: number,
+  wordLength: number,
+  wpmTarget: number
+): { wpm: number; isFast: boolean } => {
+  const wpm = scoreToWpm(calculateNormalizedScore(elapsed, wordLength));
+  return { wpm, isFast: wpm >= wpmTarget };
+};
+
 export const calculateGraduationThreshold = (wpm: number): number => {
   const totalTimeInMilliseconds = 60000;
   const avgCharsPerWord = 5;

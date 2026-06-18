@@ -4,7 +4,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
-import { generateWordSet, calculateNormalizedScore, computeWordTimingFromEvents, KeystrokeEvent, updateGraduationCounter, WordStats } from '../utils/wordUtils';
+import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
+import { generateWordSet, calculateNormalizedScore, computeWordTimingFromEvents, computeWpmParticle, KeystrokeEvent, updateGraduationCounter, WordStats } from '../utils/wordUtils';
 import { loadWordStats, saveWordStats, loadWpmTarget, resetAppData } from '../utils/persistence';
 
 function createInitialWordStats(): Record<string, WordStats> {
@@ -33,6 +34,8 @@ export default function TypingTest() {
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const wordsContainerRef = useRef<HTMLDivElement>(null);
+  const wordSpanRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const wpmParticlesRef = useRef<WpmParticlesHandle>(null);
   const [currentCharIndex, setCurrentCharIndex] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [isWordErrored, setIsWordErrored] = useState(false);
@@ -83,11 +86,24 @@ export default function TypingTest() {
     }
   }, []);
 
-  // Records timing/error data for a completed word. The synthetic space event
-  // ends the word's timing window; computeWordTimingFromEvents owns the timing.
-  const recordCompletedWord = (currentWord: string, timestamp: number) => {
+  // Records timing/error data for a completed word and spawns a WPM particle.
+  // The word span's bounding rect is measured synchronously here — before the
+  // re-render advances currentWordIndex — so the coordinates are stable.
+  const recordCompletedWord = (currentWord: string, timestamp: number, wordIndex: number) => {
     wordEventsRef.current.push({ key: ' ', timestamp });
     const elapsed = computeWordTimingFromEvents(wordEventsRef.current);
+
+    const wordSpan = wordSpanRefs.current[wordIndex];
+    const container = wordsContainerRef.current;
+    if (wordSpan && container && wpmParticlesRef.current) {
+      const wordRect = wordSpan.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const x = wordRect.left - containerRect.left + wordRect.width / 2;
+      const y = wordRect.top - containerRect.top;
+      const { wpm, isFast } = computeWpmParticle(elapsed, currentWord.length, loadWpmTarget());
+      wpmParticlesRef.current.spawn(x, y, wpm, isFast);
+    }
+
     setTypedWordsData(prev => [
       ...prev,
       { word: currentWord, time: elapsed, errors: isWordErrored ? 1 : 0 }
@@ -108,7 +124,7 @@ export default function TypingTest() {
 
     if (value.endsWith(' ')) {
       if (value.trim() === currentWord) {
-        recordCompletedWord(currentWord, timestamp);
+        recordCompletedWord(currentWord, timestamp, currentWordIndex);
 
         if (currentWordIndex + 1 === words.length) {
           finishTest();
@@ -167,7 +183,7 @@ export default function TypingTest() {
     const wordComplete = value === currentWord;
 
     if (isLastWord && wordComplete) {
-      recordCompletedWord(currentWord, timestamp);
+      recordCompletedWord(currentWord, timestamp, currentWordIndex);
       finishTest();
       return;
     }
@@ -304,9 +320,11 @@ export default function TypingTest() {
             ref={wordsContainerRef}
             className="w-full px-8 relative text-2xl min-h-[120px] leading-relaxed"
           >
+            <WpmParticles ref={wpmParticlesRef} />
             {words.map((word, wordIndex) => (
               <span
                 key={wordIndex}
+                ref={el => { wordSpanRefs.current[wordIndex] = el; }}
                 className={`word ${getWordClassName(wordIndex)}`}
               >
                 {word.split('').map((char, charIndex) => {

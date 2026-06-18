@@ -13,6 +13,7 @@
   --text-secondary: #646464;
   --accent: #e2b714;
   --error: #ca4754;
+  --success: #4ade80;
   --font-main: 'Roboto Mono', monospace;
 }
 
@@ -112,4 +113,29 @@ label {
 .sidebar::-webkit-scrollbar-thumb {
   background-color: var(--accent);
   border-radius: 3px;
+}
+
+@keyframes wpm-particle-float {
+  0%   { transform: translateY(0);     opacity: 1; }
+  100% { transform: translateY(-44px); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes wpm-particle-float {
+    0%   { opacity: 1; }
+    100% { opacity: 0; }
+  }
+}
+
+.wpm-particle {
+  position: absolute;
+  font-family: var(--font-main);
+  font-weight: bold;
+  font-size: 0.9rem;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  animation: wpm-particle-float 750ms ease-out forwards;
+  z-index: 20;
+  transform: translateX(-50%);
 }
