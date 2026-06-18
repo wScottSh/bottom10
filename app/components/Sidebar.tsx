@@ -2,7 +2,6 @@
 
 import { useState, KeyboardEvent } from 'react';
 import { WordStats, isGraduated, isGraduationCandidate, scoreToWpm } from '../utils/wordUtils';
-import { saveWpmTarget } from '../utils/persistence';
 
 // Color for a word's status: graduated and candidate words share their colors,
 // while ordinary words fall back to a caller-supplied default.
@@ -27,7 +26,6 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange,
   const handleWpmSubmit = () => {
     const newWpm = parseInt(tempWpm);
     if (newWpm > 0) {
-      saveWpmTarget(newWpm);
       onWpmChange(newWpm);
     }
     setIsEditingWpm(false);

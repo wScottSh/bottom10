@@ -7,7 +7,7 @@ import GraduatedSidebar from './GraduatedSidebar';
 import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
 import { generateWordSet, computeWordTimingFromEvents, computeWpmParticle, KeystrokeEvent, applySessionToStats, TypedWord, WordStats } from '../utils/wordUtils';
 import { TypingSessionState, applyKeystroke } from '../utils/typingSession';
-import { loadWordStats, saveWordStats, loadWpmTarget, resetAppData } from '../utils/persistence';
+import { loadWordStats, saveWordStats, loadWpmTarget, saveWpmTarget, resetAppData } from '../utils/persistence';
 
 function createInitialWordStats(): Record<string, WordStats> {
   return wordList.reduce((acc, word) => ({
@@ -200,6 +200,7 @@ export default function TypingTest() {
 
   const handleWpmChange = (wpm: number) => {
     setWpmTarget(wpm);
+    saveWpmTarget(wpm);
     startNewTest();
   };
 
