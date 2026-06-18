@@ -115,13 +115,35 @@ label {
   border-radius: 3px;
 }
 
-@keyframes wpm-particle-float {
-  0%   { transform: translateY(0);     opacity: 1; }
-  100% { transform: translateY(-44px); opacity: 0; }
+@keyframes wpm-particle-arc {
+  0% {
+    transform: translateX(calc(-50% + var(--dx, 0px))) translateY(0) rotate(var(--rot, 0deg)) scale(1);
+    opacity: 1;
+    animation-timing-function: ease-out;
+  }
+  8% {
+    transform: translateX(calc(-50% + var(--dx, 0px))) translateY(-5px) rotate(var(--rot, 0deg)) scale(1.35);
+    opacity: 1;
+    animation-timing-function: ease-out;
+  }
+  40% {
+    transform: translateX(calc(-50% + var(--dx, 0px))) translateY(-46px) rotate(var(--rot, 0deg)) scale(1);
+    opacity: 1;
+    animation-timing-function: ease-in;
+  }
+  65% {
+    transform: translateX(calc(-50% + var(--dx, 0px))) translateY(-26px) rotate(var(--rot, 0deg)) scale(1);
+    opacity: 1;
+    animation-timing-function: ease-in;
+  }
+  100% {
+    transform: translateX(calc(-50% + var(--dx, 0px))) translateY(20px) rotate(var(--rot, 0deg)) scale(0.9);
+    opacity: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  @keyframes wpm-particle-float {
+  @keyframes wpm-particle-arc {
     0%   { opacity: 1; }
     100% { opacity: 0; }
   }
@@ -135,7 +157,6 @@ label {
   pointer-events: none;
   user-select: none;
   white-space: nowrap;
-  animation: wpm-particle-float 750ms ease-out forwards;
+  animation: wpm-particle-arc 750ms linear forwards;
   z-index: 20;
-  transform: translateX(-50%);
 }

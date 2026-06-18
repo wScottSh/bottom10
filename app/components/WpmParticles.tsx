@@ -8,6 +8,8 @@ interface Particle {
   y: number;
   wpm: number;
   isFast: boolean;
+  dx: number;
+  rot: number;
 }
 
 export interface WpmParticlesHandle {
@@ -21,7 +23,9 @@ const WpmParticles = forwardRef<WpmParticlesHandle>(function WpmParticles(_, ref
   useImperativeHandle(ref, () => ({
     spawn(x, y, wpm, isFast) {
       const id = nextId.current++;
-      setParticles(prev => [...prev, { id, x, y, wpm, isFast }]);
+      const dx = Math.round((Math.random() - 0.5) * 28);
+      const rot = Math.round((Math.random() - 0.5) * 12);
+      setParticles(prev => [...prev, { id, x, y, wpm, isFast, dx, rot }]);
     },
   }));
 
@@ -39,7 +43,9 @@ const WpmParticles = forwardRef<WpmParticlesHandle>(function WpmParticles(_, ref
             left: p.x,
             top: p.y,
             color: p.isFast ? 'var(--success)' : 'var(--error)',
-          }}
+            '--dx': `${p.dx}px`,
+            '--rot': `${p.rot}deg`,
+          } as React.CSSProperties}
           onAnimationEnd={() => removeParticle(p.id)}
         >
           {p.wpm}
