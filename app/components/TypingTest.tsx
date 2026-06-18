@@ -123,6 +123,10 @@ export default function TypingTest() {
       return;
     }
 
+    // Snapshot of the reducer-owned state; stable for this synchronous handler
+    // since setState calls don't take effect until the next render.
+    const session: TypingSessionState = { currentInput, currentWordIndex, currentCharIndex, hasError, isWordErrored, testStarted };
+
     if (value.endsWith(' ')) {
       if (value.trim() === currentWord) {
         recordCompletedWord(currentWord, timestamp, currentWordIndex);
@@ -130,8 +134,7 @@ export default function TypingTest() {
         if (currentWordIndex + 1 === words.length) {
           finishTest();
         } else {
-          const sessionState: TypingSessionState = { currentInput, currentWordIndex, currentCharIndex, hasError, isWordErrored, testStarted };
-          const next = applyKeystroke(sessionState, value, words);
+          const next = applyKeystroke(session, value, words);
           setCorrectWords(correctWords + 1);
           setCurrentWordIndex(next.currentWordIndex);
           setCurrentInput(next.currentInput);
@@ -188,8 +191,7 @@ export default function TypingTest() {
       return;
     }
 
-    const sessionState: TypingSessionState = { currentInput, currentWordIndex, currentCharIndex, hasError, isWordErrored, testStarted };
-    const next = applyKeystroke(sessionState, value, words);
+    const next = applyKeystroke(session, value, words);
     setCurrentInput(next.currentInput);
     setCurrentCharIndex(next.currentCharIndex);
     setHasError(next.hasError);
