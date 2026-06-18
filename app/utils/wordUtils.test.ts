@@ -743,6 +743,101 @@ describe('generateWordSet', () => {
   });
 });
 
+describe('generateWordSet — working set selection and distribution (issue #32)', () => {
+  const makeStats = (
+    words: string[],
+    overrides: Record<string, Partial<WordStats>> = {}
+  ): Record<string, WordStats> => {
+    const stats: Record<string, WordStats> = {};
+    for (const w of words) {
+      stats[w] = { word: w, time: 0, attempts: 0, lastScore: 0, ...overrides[w] };
+    }
+    return stats;
+  };
+
+  test('fully-graduated pool: returns empty array when all words have graduated', () => {
+    // lastScore=100 < threshold(40wpm)=300 AND consecutiveSubThreshold=2 => graduated
+    const allWords = ['the', 'be', 'to', 'of', 'and'];
+    const stats = makeStats(allWords, {
+      the: { lastScore: 100, consecutiveSubThreshold: 2 },
+      be:  { lastScore: 100, consecutiveSubThreshold: 2 },
+      to:  { lastScore: 100, consecutiveSubThreshold: 2 },
+      of:  { lastScore: 100, consecutiveSubThreshold: 2 },
+      and: { lastScore: 100, consecutiveSubThreshold: 2 },
+    });
+
+    const result = generateWordSet(50, stats, allWords);
+    expect(result).toEqual([]);
+  });
+
+  test('mixed scored/unscored: unscored words appear exactly 2 times each', () => {
+    // 3 scored (not graduated) + 2 unscored in the working set
+    const allWords = ['the', 'be', 'to', 'of', 'and'];
+    const stats = makeStats(allWords, {
+      the: { lastScore: 800 },
+      be:  { lastScore: 600 },
+      to:  { lastScore: 400 },
+      // 'of' and 'and' remain unscored (lastScore: 0)
+    });
+
+    const result = generateWordSet(50, stats, allWords);
+
+    expect(result.filter(w => w === 'of').length).toBe(2);
+    expect(result.filter(w => w === 'and').length).toBe(2);
+  });
+
+  test('mixed scored/unscored: worst-scoring word gets more reps than best-scoring word', () => {
+    const allWords = ['the', 'be', 'to', 'of', 'and'];
+    const stats = makeStats(allWords, {
+      the: { lastScore: 800 },  // worst
+      be:  { lastScore: 600 },
+      to:  { lastScore: 400 },  // best scored
+      // 'of' and 'and' unscored
+    });
+
+    const result = generateWordSet(50, stats, allWords);
+
+    const theCount = result.filter(w => w === 'the').length;
+    const toCount = result.filter(w => w === 'to').length;
+    expect(theCount).toBeGreaterThan(toCount);
+  });
+
+  test('working set caps at WORKING_SET_SIZE=10 even when more active scored words exist', () => {
+    // 15 scored non-graduated words: only the worst 10 should appear
+    const allWords = Array.from({ length: 15 }, (_, i) => `word${i}`);
+    const overrides: Record<string, Partial<WordStats>> = {};
+    for (let i = 0; i < 15; i++) {
+      overrides[`word${i}`] = { lastScore: 300 + i * 10 };  // word14=440 (worst), word0=300 (best)
+    }
+    const stats = makeStats(allWords, overrides);
+
+    const result = generateWordSet(50, stats, allWords);
+
+    const uniqueWords = new Set(result);
+    expect(uniqueWords.size).toBeLessThanOrEqual(10);
+    expect(uniqueWords.has('word14')).toBe(true);   // worst must be included
+    expect(uniqueWords.has('word0')).toBe(false);   // best of 15 is cut off
+  });
+
+  test('graduated word slot is filled by untouched words from allWords frequency order', () => {
+    // 'the' is graduated; 'be' is active scored; rest are untouched
+    const allWords = ['the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'it'];
+    const stats = makeStats(allWords, {
+      the: { lastScore: 100, consecutiveSubThreshold: 2 },  // graduated
+      be:  { lastScore: 800 },  // active scored
+    });
+
+    const result = generateWordSet(50, stats, allWords);
+
+    expect(result).not.toContain('the');
+    expect(result).toContain('be');
+    // Untouched words fill in for the graduated slot
+    const untouched = ['to', 'of', 'and', 'a', 'in', 'that', 'have', 'it'];
+    const hasUntouched = untouched.some(w => result.includes(w));
+    expect(hasUntouched).toBe(true);
+  });
+});
+
 describe('buildConvexDistribution', () => {
   // Helpers
   const mkEntries = (scores: number[]) =>
