@@ -27,6 +27,15 @@ export interface KeystrokeEvent {
   timestamp: number;
 }
 
+// One word as completed during a test: the word, its elapsed typing time, and
+// whether it was typed with an error. Accumulated across a session, then folded
+// into the durable stats by applySessionToStats.
+export interface TypedWord {
+  word: string;
+  time: number;
+  errors: number;
+}
+
 // Pure helper: given a scripted sequence of timestamped keystroke events for a word,
 // returns the word's elapsed typing time from the first character to the completing
 // space. The inter-word switch gap is excluded by construction — the clock starts on
@@ -108,7 +117,7 @@ export const updateGraduationCounter = (stats: WordStats, wpm: number): WordStat
 // runs the graduation counter. Does not mutate the input stats object.
 export const applySessionToStats = (
   stats: Record<string, WordStats>,
-  typedWords: { word: string; time: number; errors: number }[],
+  typedWords: TypedWord[],
   wpmTarget: number
 ): Record<string, WordStats> => {
   const updatedStats = { ...stats };

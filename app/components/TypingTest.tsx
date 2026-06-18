@@ -5,7 +5,7 @@ import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
 import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
-import { generateWordSet, computeWordTimingFromEvents, computeWpmParticle, KeystrokeEvent, applySessionToStats, WordStats } from '../utils/wordUtils';
+import { generateWordSet, computeWordTimingFromEvents, computeWpmParticle, KeystrokeEvent, applySessionToStats, TypedWord, WordStats } from '../utils/wordUtils';
 import { TypingSessionState, applyKeystroke } from '../utils/typingSession';
 import { loadWordStats, saveWordStats, loadWpmTarget, resetAppData } from '../utils/persistence';
 
@@ -29,9 +29,7 @@ export default function TypingTest() {
   // Accumulates keystroke events for the current word; cleared on word advance.
   // Passed to computeWordTimingFromEvents which owns the first-char timing decision.
   const wordEventsRef = useRef<KeystrokeEvent[]>([]);
-  const [typedWordsData, setTypedWordsData] = useState<
-    { word: string; time: number; errors: number }[]
-  >([]);
+  const [typedWordsData, setTypedWordsData] = useState<TypedWord[]>([]);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const wordsContainerRef = useRef<HTMLDivElement>(null);
