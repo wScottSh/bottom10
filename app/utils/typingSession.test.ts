@@ -44,15 +44,87 @@ describe('applyKeystroke — correct character entry', () => {
     expect(next.currentInput).toBe('h');
   });
 
-  it('returns state unchanged for a wrong character', () => {
+  it('sets hasError for a wrong first character, does not latch isWordErrored', () => {
     const next = applyKeystroke(base, 'x', words);
-    expect(next).toBe(base);
+    expect(next.hasError).toBe(true);
+    expect(next.isWordErrored).toBe(false);
+    expect(next.currentInput).toBe('');
+    expect(next.currentCharIndex).toBe(0);
+  });
+
+  it('sets testStarted when wrong first character is typed', () => {
+    const next = applyKeystroke(base, 'x', words);
+    expect(next.testStarted).toBe(true);
+  });
+
+  it('sets hasError and latches isWordErrored for a wrong mid-word character', () => {
+    const state = { ...base, currentInput: 'h', currentCharIndex: 1 };
+    const next = applyKeystroke(state, 'hx', words);
+    expect(next.hasError).toBe(true);
+    expect(next.isWordErrored).toBe(true);
+    expect(next.currentInput).toBe('h');
+    expect(next.currentCharIndex).toBe(1);
   });
 
   it('returns state unchanged when word is errored (isWordErrored)', () => {
     const state = { ...base, currentInput: 'h', currentCharIndex: 1, isWordErrored: true };
     const next = applyKeystroke(state, 'hx', words);
     expect(next).toBe(state);
+  });
+});
+
+describe('applyKeystroke — backspace recovery', () => {
+  it('backspace clears hasError and shrinks currentInput', () => {
+    const state = { ...base, currentInput: 'h', currentCharIndex: 1, hasError: true };
+    const next = applyKeystroke(state, '', words);
+    expect(next.currentInput).toBe('');
+    expect(next.currentCharIndex).toBe(0);
+    expect(next.hasError).toBe(false);
+  });
+
+  it('backspace to empty clears isWordErrored', () => {
+    const state = { ...base, currentInput: 'h', currentCharIndex: 1, hasError: true, isWordErrored: true };
+    const next = applyKeystroke(state, '', words);
+    expect(next.isWordErrored).toBe(false);
+  });
+
+  it('backspace mid-word keeps isWordErrored until empty', () => {
+    const state = { ...base, currentInput: 'he', currentCharIndex: 2, hasError: true, isWordErrored: true };
+    const next = applyKeystroke(state, 'h', words);
+    expect(next.currentInput).toBe('h');
+    expect(next.isWordErrored).toBe(true);
+    expect(next.hasError).toBe(false);
+  });
+
+  it('recovers from wrong first char without backspace (stuck-word scenario 1)', () => {
+    // Wrong first char: hasError set, currentInput stays empty, no isWordErrored latch.
+    let state = applyKeystroke(base, 'x', words);
+    expect(state.hasError).toBe(true);
+    expect(state.isWordErrored).toBe(false);
+    expect(state.currentInput).toBe('');
+    // Correct first char clears the error and advances input.
+    state = applyKeystroke(state, 'h', words);
+    expect(state.currentInput).toBe('h');
+    expect(state.hasError).toBe(false);
+  });
+
+  it('recovers from wrong mid-word char after backspacing to empty (stuck-word scenario 2)', () => {
+    // Type first char correctly.
+    let state = applyKeystroke(base, 'h', words);
+    // Wrong second char latches isWordErrored.
+    state = applyKeystroke(state, 'hx', words);
+    expect(state.isWordErrored).toBe(true);
+    expect(state.currentInput).toBe('h');
+    // Blocked by isWordErrored — returns same reference.
+    expect(applyKeystroke(state, 'hxz', words)).toBe(state);
+    // Backspace down to empty clears isWordErrored.
+    state = applyKeystroke(state, '', words);
+    expect(state.currentInput).toBe('');
+    expect(state.isWordErrored).toBe(false);
+    // Can now type correct first char again.
+    state = applyKeystroke(state, 'h', words);
+    expect(state.currentInput).toBe('h');
+    expect(state.hasError).toBe(false);
   });
 });
 

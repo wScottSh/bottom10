@@ -147,54 +147,29 @@ export default function TypingTest() {
       return;
     }
 
-    if (!testStarted && value.length === 1) {
-      setTestStarted(true);
-    }
-
-    // Accumulate event before error/backspace checks so the first-char timestamp
-    // is captured even when that character is incorrect. The timing decision
-    // (which event starts the clock) is delegated to computeWordTimingFromEvents.
+    // Accumulate event before the reducer so the first-char timestamp is captured
+    // even when that character is incorrect. The timing decision (which event starts
+    // the clock) is delegated to computeWordTimingFromEvents.
     if (value.length > currentInput.length) {
       wordEventsRef.current.push({ key: value[value.length - 1], timestamp });
     } else if (value.length < currentInput.length) {
       wordEventsRef.current.push({ key: 'Backspace', timestamp });
     }
 
-    if (value.length < currentInput.length) {
-      setCurrentInput(value);
-      setCurrentCharIndex(value.length);
-      setHasError(false);
-      if (value.length === 0) {
-        setIsWordErrored(false);
-      }
-      return;
-    }
+    const next = applyKeystroke(session, value, words);
 
-    if (isWordErrored) return;
-
-    const newChar = value[value.length - 1];
-    const expectedChar = currentWord[currentInput.length];
-
-    if (newChar !== expectedChar) {
-      setHasError(true);
-      const canRecoverByDeleting = currentInput.length > 0;
-      if (canRecoverByDeleting) setIsWordErrored(true);
-      return;
-    }
-
-    const isLastWord = currentWordIndex + 1 === words.length;
-    const wordComplete = value === currentWord;
-
-    if (isLastWord && wordComplete) {
+    // Last-word completion: correct char fills the final word (no space needed).
+    if (currentWordIndex + 1 === words.length && next.currentInput === currentWord) {
       recordCompletedWord(currentWord, timestamp, currentWordIndex);
       finishTest();
       return;
     }
 
-    const next = applyKeystroke(session, value, words);
     setCurrentInput(next.currentInput);
     setCurrentCharIndex(next.currentCharIndex);
     setHasError(next.hasError);
+    setIsWordErrored(next.isWordErrored);
+    setTestStarted(next.testStarted);
   };
 
   const finishTest = () => {
