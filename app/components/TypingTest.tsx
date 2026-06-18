@@ -121,40 +121,25 @@ export default function TypingTest() {
     const session: TypingSessionState = { currentInput, currentWordIndex, currentCharIndex, hasError, isWordErrored, testStarted, wordStartTimestamp };
     const isLastWord = currentWordIndex + 1 === words.length;
 
-    if (value.endsWith(' ')) {
-      const result = applyKeystroke(session, value, words, timestamp);
-      if (result.completedWord) {
-        recordCompletedWord(result.completedWord, currentWordIndex);
-        if (isLastWord) {
-          finishTest();
-        } else {
-          setCorrectWords(correctWords + 1);
-          setCurrentWordIndex(result.state.currentWordIndex);
-          setCurrentInput(result.state.currentInput);
-          setCurrentCharIndex(result.state.currentCharIndex);
-          setWordStartTimestamp(result.state.wordStartTimestamp);
-          setHasError(result.state.hasError);
-          setIsWordErrored(result.state.isWordErrored);
-        }
+    const { state, completedWord } = applyKeystroke(session, value, words, timestamp);
+
+    if (completedWord) {
+      recordCompletedWord(completedWord, currentWordIndex);
+      // Finishing the last word ends the test; startTestWithWords resets all state.
+      if (isLastWord) {
+        finishTest();
+        return;
       }
-      return;
+      setCorrectWords(correctWords + 1);
     }
 
-    const result = applyKeystroke(session, value, words, timestamp);
-
-    // Last-word direct completion: correct char fills the final word (no space needed).
-    if (result.completedWord) {
-      recordCompletedWord(result.completedWord, currentWordIndex);
-      finishTest();
-      return;
-    }
-
-    setCurrentInput(result.state.currentInput);
-    setCurrentCharIndex(result.state.currentCharIndex);
-    setHasError(result.state.hasError);
-    setIsWordErrored(result.state.isWordErrored);
-    setTestStarted(result.state.testStarted);
-    setWordStartTimestamp(result.state.wordStartTimestamp);
+    setCurrentInput(state.currentInput);
+    setCurrentWordIndex(state.currentWordIndex);
+    setCurrentCharIndex(state.currentCharIndex);
+    setHasError(state.hasError);
+    setIsWordErrored(state.isWordErrored);
+    setTestStarted(state.testStarted);
+    setWordStartTimestamp(state.wordStartTimestamp);
   };
 
   const finishTest = () => {

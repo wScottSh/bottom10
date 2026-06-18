@@ -20,6 +20,11 @@ export interface CompletedWordOutcome {
   elapsed: number;
 }
 
+export interface ApplyKeystrokeResult {
+  state: TypingSessionState;
+  completedWord: CompletedWordOutcome | null;
+}
+
 // Applies one keystroke to the session state. Returns the new state and an
 // optional completed-word outcome. state is returned as the original reference
 // (===) only when the keystroke is a true no-op (space on wrong word, blocked
@@ -29,16 +34,16 @@ export function applyKeystroke(
   newValue: string,
   words: string[],
   timestamp: number
-): { state: TypingSessionState; completedWord: CompletedWordOutcome | null } {
+): ApplyKeystrokeResult {
   const currentWord = words[state.currentWordIndex];
   if (!currentWord) return { state, completedWord: null };
+
+  // Elapsed typing time for the current word; 0 if the clock never started.
+  const elapsedSince = (start: number | null) => (start !== null ? timestamp - start : 0);
 
   // Space: advance on correct word, ignore on partial/wrong word.
   if (newValue.endsWith(' ')) {
     if (newValue.trim() === currentWord) {
-      const elapsed = state.wordStartTimestamp !== null
-        ? timestamp - state.wordStartTimestamp
-        : 0;
       return {
         state: {
           ...state,
@@ -49,7 +54,7 @@ export function applyKeystroke(
           isWordErrored: false,
           wordStartTimestamp: null,
         },
-        completedWord: { word: currentWord, elapsed },
+        completedWord: { word: currentWord, elapsed: elapsedSince(state.wordStartTimestamp) },
       };
     }
     return { state, completedWord: null };
@@ -106,8 +111,7 @@ export function applyKeystroke(
   // Last-word direct completion: correct char fills the final word (no space needed).
   const isLastWord = state.currentWordIndex + 1 === words.length;
   if (isLastWord && newValue === currentWord) {
-    const elapsed = wordStartTimestamp !== null ? timestamp - wordStartTimestamp : 0;
-    return { state: newState, completedWord: { word: currentWord, elapsed } };
+    return { state: newState, completedWord: { word: currentWord, elapsed: elapsedSince(wordStartTimestamp) } };
   }
 
   return { state: newState, completedWord: null };
