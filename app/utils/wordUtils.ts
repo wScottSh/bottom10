@@ -131,12 +131,18 @@ export const applySessionToStats = (
 
   Object.entries(wordGroups).forEach(([word, { totalTime, count }]) => {
     const avgTime = totalTime / count;
-    const normalizedScore = calculateNormalizedScore(avgTime, word.length);
+    const sessionScore = calculateNormalizedScore(avgTime, word.length);
+    const prevAttempts = updatedStats[word]?.attempts || 0;
+    const prevLastScore = updatedStats[word]?.lastScore || 0;
+    const cumulativeScore =
+      prevAttempts === 0
+        ? sessionScore
+        : (prevLastScore * prevAttempts + sessionScore) / (prevAttempts + 1);
     const withNewScore: WordStats = {
       ...updatedStats[word],
       time: avgTime,
-      attempts: (updatedStats[word]?.attempts || 0) + 1,
-      lastScore: normalizedScore,
+      attempts: prevAttempts + 1,
+      lastScore: cumulativeScore,
     };
     updatedStats[word] = updateGraduationCounter(withNewScore, wpmTarget);
   });

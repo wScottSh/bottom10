@@ -987,4 +987,18 @@ describe('applySessionToStats', () => {
     applySessionToStats(stats, typedWords, wpmTarget);
     expect(stats['the']).toEqual(statsBefore['the']);
   });
+
+  test('second session shifts lastScore toward new value rather than replacing it (cumulative average)', () => {
+    // First session established a score of 200 ms/char for 2-char word 'hi'
+    const stats: Record<string, WordStats> = {
+      hi: { word: 'hi', time: 400, attempts: 1, lastScore: 200, consecutiveSubThreshold: 0 },
+    };
+    // Second session: 600ms total for 'hi' → session score = 600/2 = 300 ms/char
+    const typedWords = [{ word: 'hi', time: 600, errors: 0 }];
+    const result = applySessionToStats(stats, typedWords, wpmTarget);
+    // Cumulative average: (200 * 1 + 300) / 2 = 250
+    expect(result['hi'].lastScore).toBe(250);
+    // Must not be the raw session score (300) — prior attempts must be weighted in
+    expect(result['hi'].lastScore).not.toBe(300);
+  });
 });
