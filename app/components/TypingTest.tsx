@@ -6,6 +6,7 @@ import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
 import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
 import { generateWordSet, calculateNormalizedScore, computeWordTimingFromEvents, computeWpmParticle, KeystrokeEvent, updateGraduationCounter, WordStats } from '../utils/wordUtils';
+import { TypingSessionState, applyKeystroke } from '../utils/typingSession';
 import { loadWordStats, saveWordStats, loadWpmTarget, resetAppData } from '../utils/persistence';
 
 function createInitialWordStats(): Record<string, WordStats> {
@@ -122,6 +123,10 @@ export default function TypingTest() {
       return;
     }
 
+    // Snapshot of the reducer-owned state; stable for this synchronous handler
+    // since setState calls don't take effect until the next render.
+    const session: TypingSessionState = { currentInput, currentWordIndex, currentCharIndex, hasError, isWordErrored, testStarted };
+
     if (value.endsWith(' ')) {
       if (value.trim() === currentWord) {
         recordCompletedWord(currentWord, timestamp, currentWordIndex);
@@ -129,13 +134,14 @@ export default function TypingTest() {
         if (currentWordIndex + 1 === words.length) {
           finishTest();
         } else {
+          const next = applyKeystroke(session, value, words);
           setCorrectWords(correctWords + 1);
-          setCurrentWordIndex(currentWordIndex + 1);
-          setCurrentInput('');
-          setCurrentCharIndex(0);
+          setCurrentWordIndex(next.currentWordIndex);
+          setCurrentInput(next.currentInput);
+          setCurrentCharIndex(next.currentCharIndex);
           wordEventsRef.current = []; // reset for next word; timer starts on its first char
-          setHasError(false);
-          setIsWordErrored(false);
+          setHasError(next.hasError);
+          setIsWordErrored(next.isWordErrored);
         }
       }
       return;
@@ -176,9 +182,6 @@ export default function TypingTest() {
       return;
     }
 
-    setCurrentInput(value);
-    setCurrentCharIndex(value.length);
-
     const isLastWord = currentWordIndex + 1 === words.length;
     const wordComplete = value === currentWord;
 
@@ -188,9 +191,10 @@ export default function TypingTest() {
       return;
     }
 
-    if (hasError && value === currentWord.slice(0, value.length)) {
-      setHasError(false);
-    }
+    const next = applyKeystroke(session, value, words);
+    setCurrentInput(next.currentInput);
+    setCurrentCharIndex(next.currentCharIndex);
+    setHasError(next.hasError);
   };
 
   const finishTest = () => {
