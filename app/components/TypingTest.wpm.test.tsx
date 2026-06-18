@@ -11,8 +11,8 @@ function typeChar(input: HTMLInputElement, char: string) {
 function currentWordText(container: HTMLElement): string {
   const span = container.querySelector('.word.current');
   if (!span) throw new Error('no current word rendered');
-  // Strip non-breaking space added by the trailing char span
-  return (span.textContent ?? '').replace(/[  ]/g, '');
+  // Strip the trailing space / non-breaking space added by the trailing char span
+  return (span.textContent ?? '').replace(/[ \u00A0]/g, '');
 }
 
 function completedWordCount(container: HTMLElement): number {
