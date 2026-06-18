@@ -171,7 +171,6 @@ export default function TypingTest() {
   const handleWpmChange = (wpm: number) => {
     setWpmTarget(wpm);
     saveWpmTarget(wpm);
-    startNewTest();
   };
 
   // Class for a word span: the current word turns red once it's errored,
