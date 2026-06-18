@@ -14,6 +14,7 @@ import {
   computeWordElapsedTime,
   computeWordTimingFromEvents,
   scoreToWpm,
+  computeWpmParticle,
   dedupeAdjacent,
   KeystrokeEvent,
   WordStats,
@@ -994,5 +995,46 @@ describe('generateWordSet — no adjacent duplicates', () => {
       const result = generateWordSet(30, {}, allWords);
       expect(hasAdjacentDupe(result)).toBe(false);
     }
+  });
+});
+
+describe('computeWpmParticle', () => {
+  // wpmTarget=50 → graduation threshold = 60000/(50*5) = 240 ms/char
+  const WPM_TARGET = 50;
+
+  it('fast completion: returns isFast=true when wpm > target', () => {
+    // elapsed=1000ms, len=5 → score=200ms/char → wpm=60
+    const { wpm, isFast } = computeWpmParticle(1000, 5, WPM_TARGET);
+    expect(wpm).toBe(60);
+    expect(isFast).toBe(true);
+  });
+
+  it('slow completion: returns isFast=false when wpm < target', () => {
+    // elapsed=2000ms, len=5 → score=400ms/char → wpm=30
+    const { wpm, isFast } = computeWpmParticle(2000, 5, WPM_TARGET);
+    expect(wpm).toBe(30);
+    expect(isFast).toBe(false);
+  });
+
+  it('exactly at target: returns isFast=true (equal counts as green)', () => {
+    // elapsed=1200ms, len=5 → score=240ms/char → wpm=50 (exactly target)
+    const { wpm, isFast } = computeWpmParticle(1200, 5, WPM_TARGET);
+    expect(wpm).toBe(50);
+    expect(isFast).toBe(true);
+  });
+
+  it('wpm value is always an integer', () => {
+    // elapsed=700ms, len=3 → score=233.33ms/char → raw wpm≈51.43 → rounds to 51
+    const { wpm } = computeWpmParticle(700, 3, WPM_TARGET);
+    expect(Number.isInteger(wpm)).toBe(true);
+    expect(wpm).toBe(51);
+  });
+
+  it('wpm agrees with the scoring pipeline for representative inputs', () => {
+    const elapsed = 800;
+    const wordLength = 4;
+    const expected = scoreToWpm(calculateNormalizedScore(elapsed, wordLength));
+    const { wpm } = computeWpmParticle(elapsed, wordLength, WPM_TARGET);
+    expect(wpm).toBe(expected);
   });
 });
