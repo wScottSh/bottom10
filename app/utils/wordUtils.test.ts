@@ -609,15 +609,17 @@ describe('selectWorkingSet', () => {
   });
 });
 
-describe('generateWordSet', () => {
-  const makeStats = (words: string[], overrides: Record<string, Partial<WordStats>> = {}): Record<string, WordStats> => {
-    const stats: Record<string, WordStats> = {};
-    for (const w of words) {
-      stats[w] = { word: w, time: 0, attempts: 0, lastScore: 0, ...overrides[w] };
-    }
-    return stats;
-  };
+// Shared by the generateWordSet describe blocks below: builds a WordStats map
+// from a word list, applying per-word overrides on top of unscored defaults.
+const makeStats = (words: string[], overrides: Record<string, Partial<WordStats>> = {}): Record<string, WordStats> => {
+  const stats: Record<string, WordStats> = {};
+  for (const w of words) {
+    stats[w] = { word: w, time: 0, attempts: 0, lastScore: 0, ...overrides[w] };
+  }
+  return stats;
+};
 
+describe('generateWordSet', () => {
   test('includes worst-scoring word when it has high lastScore', () => {
     const allWords = ['the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'it'];
     const stats = makeStats(allWords, {
@@ -744,17 +746,6 @@ describe('generateWordSet', () => {
 });
 
 describe('generateWordSet — working set selection and distribution (issue #32)', () => {
-  const makeStats = (
-    words: string[],
-    overrides: Record<string, Partial<WordStats>> = {}
-  ): Record<string, WordStats> => {
-    const stats: Record<string, WordStats> = {};
-    for (const w of words) {
-      stats[w] = { word: w, time: 0, attempts: 0, lastScore: 0, ...overrides[w] };
-    }
-    return stats;
-  };
-
   test('fully-graduated pool: returns empty array when all words have graduated', () => {
     // lastScore=100 < threshold(40wpm)=300 AND consecutiveSubThreshold=2 => graduated
     const allWords = ['the', 'be', 'to', 'of', 'and'];
