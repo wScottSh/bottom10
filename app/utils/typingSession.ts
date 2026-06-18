@@ -52,6 +52,8 @@ export function applyKeystroke(
   // Adding a character. isWordErrored blocks all input until backspace clears it.
   if (state.isWordErrored) return state;
 
+  // Typing the first character of the test starts the clock, right or wrong.
+  const testStarted = state.testStarted || newValue.length === 1;
   const newChar = newValue[newValue.length - 1];
   const expectedChar = currentWord[state.currentInput.length];
 
@@ -61,7 +63,7 @@ export function applyKeystroke(
       ...state,
       hasError: true,
       isWordErrored: state.currentInput.length > 0,
-      testStarted: state.testStarted || newValue.length === 1,
+      testStarted,
     };
   }
 
@@ -71,6 +73,6 @@ export function applyKeystroke(
     currentInput: newValue,
     currentCharIndex: newValue.length,
     hasError: false,
-    testStarted: state.testStarted || newValue.length === 1,
+    testStarted,
   };
 }

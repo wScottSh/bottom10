@@ -126,12 +126,13 @@ export default function TypingTest() {
     // Snapshot of the reducer-owned state; stable for this synchronous handler
     // since setState calls don't take effect until the next render.
     const session: TypingSessionState = { currentInput, currentWordIndex, currentCharIndex, hasError, isWordErrored, testStarted };
+    const isLastWord = currentWordIndex + 1 === words.length;
 
     if (value.endsWith(' ')) {
       if (value.trim() === currentWord) {
         recordCompletedWord(currentWord, timestamp, currentWordIndex);
 
-        if (currentWordIndex + 1 === words.length) {
+        if (isLastWord) {
           finishTest();
         } else {
           const next = applyKeystroke(session, value, words);
@@ -159,7 +160,7 @@ export default function TypingTest() {
     const next = applyKeystroke(session, value, words);
 
     // Last-word completion: correct char fills the final word (no space needed).
-    if (currentWordIndex + 1 === words.length && next.currentInput === currentWord) {
+    if (isLastWord && next.currentInput === currentWord) {
       recordCompletedWord(currentWord, timestamp, currentWordIndex);
       finishTest();
       return;
