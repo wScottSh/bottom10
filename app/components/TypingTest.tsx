@@ -155,7 +155,8 @@ export default function TypingTest() {
 
     if (newChar !== expectedChar) {
       setHasError(true);
-      setIsWordErrored(true);
+      const canRecoverByDeleting = currentInput.length > 0;
+      if (canRecoverByDeleting) setIsWordErrored(true);
       return;
     }
 
