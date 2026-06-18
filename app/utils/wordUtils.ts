@@ -134,10 +134,9 @@ export const applySessionToStats = (
     const sessionScore = calculateNormalizedScore(avgTime, word.length);
     const prevAttempts = updatedStats[word]?.attempts || 0;
     const prevLastScore = updatedStats[word]?.lastScore || 0;
-    const cumulativeScore =
-      prevAttempts === 0
-        ? sessionScore
-        : (prevLastScore * prevAttempts + sessionScore) / (prevAttempts + 1);
+    // Running mean of per-session scores. With prevAttempts === 0 this reduces to
+    // sessionScore, so the first session needs no special case.
+    const cumulativeScore = (prevLastScore * prevAttempts + sessionScore) / (prevAttempts + 1);
     const withNewScore: WordStats = {
       ...updatedStats[word],
       time: avgTime,
