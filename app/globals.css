@@ -144,8 +144,13 @@ label {
 
 @media (prefers-reduced-motion: reduce) {
   @keyframes wpm-particle-arc {
-    0%   { opacity: 1; }
-    100% { opacity: 0; }
+    0%   { opacity: 1; transform: none; }
+    50%  { opacity: 1; transform: none; }
+    100% { opacity: 0; transform: none; }
+  }
+
+  .wpm-particle {
+    animation-duration: 600ms;
   }
 }
 
