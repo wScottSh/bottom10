@@ -7,7 +7,7 @@ import GraduatedSidebar from './GraduatedSidebar';
 import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
 import { generateWordSet, computeWordTimingFromEvents, computeWpmParticle, KeystrokeEvent, applySessionToStats, TypedWord, WordStats } from '../utils/wordUtils';
 import { TypingSessionState, applyKeystroke } from '../utils/typingSession';
-import { loadWordStats, saveWordStats, loadWpmTarget, resetAppData } from '../utils/persistence';
+import { loadWordStats, saveWordStats, loadWpmTarget, saveWpmTarget, resetAppData } from '../utils/persistence';
 
 function createInitialWordStats(): Record<string, WordStats> {
   return wordList.reduce((acc, word) => ({
@@ -19,6 +19,7 @@ function createInitialWordStats(): Record<string, WordStats> {
 export default function TypingTest() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [globalWordStats, setGlobalWordStats] = useState(createInitialWordStats);
+  const [wpmTarget, setWpmTarget] = useState<number>(() => loadWpmTarget());
 
   const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(true);
   const [words, setWords] = useState<string[]>([]);
@@ -99,7 +100,7 @@ export default function TypingTest() {
       const containerRect = container.getBoundingClientRect();
       const x = wordRect.left - containerRect.left + wordRect.width / 2;
       const y = wordRect.top - containerRect.top;
-      const { wpm, isFast } = computeWpmParticle(elapsed, currentWord.length, loadWpmTarget());
+      const { wpm, isFast } = computeWpmParticle(elapsed, currentWord.length, wpmTarget);
       wpmParticlesRef.current.spawn(x, y, wpm, isFast);
     }
 
@@ -172,7 +173,6 @@ export default function TypingTest() {
   };
 
   const finishTest = () => {
-    const wpmTarget = loadWpmTarget();
     const updatedStats = applySessionToStats(globalWordStats, typedWordsData, wpmTarget);
     const newWords = generateWordSet(wordCount, updatedStats, wordList);
 
@@ -198,7 +198,9 @@ export default function TypingTest() {
     </div>
   );
 
-  const handleWpmChange = () => {
+  const handleWpmChange = (wpm: number) => {
+    setWpmTarget(wpm);
+    saveWpmTarget(wpm);
     startNewTest();
   };
 
@@ -221,11 +223,12 @@ export default function TypingTest() {
   return (
     <>
       {renderHeader()}
-      <Sidebar 
+      <Sidebar
         isOpen={isSidebarOpen}
         wordStats={globalWordStats}
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         onWpmChange={handleWpmChange}
+        wpmTarget={wpmTarget}
       />
       <GraduatedSidebar
         isOpen={isGraduatedSidebarOpen}
