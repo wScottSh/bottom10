@@ -155,7 +155,12 @@ export default function TypingTest() {
 
     if (newChar !== expectedChar) {
       setHasError(true);
-      setIsWordErrored(true);
+      // Only engage the persistent "delete back to empty before retyping" lock
+      // (issue #22) when there is at least one character to delete. A typo on the
+      // first character leaves currentInput empty, and the lock's only reset path
+      // is a backspace reaching length 0 — which can never fire on an already-empty
+      // field — so locking here would strand the word red forever (issue #27).
+      if (currentInput.length > 0) setIsWordErrored(true);
       return;
     }
 
