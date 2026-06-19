@@ -191,6 +191,50 @@ label {
   animation: graduation-count-tick 400ms ease-out forwards;
 }
 
+@keyframes graduation-flight-arc {
+  /* Anticipation: clone materializes at source with a brief glow */
+  0% {
+    transform: translate(var(--dx), var(--dy)) scale(1);
+    opacity: 0;
+  }
+  10% {
+    transform: translate(var(--dx), var(--dy)) scale(1.1);
+    opacity: 1;
+    filter: drop-shadow(0 0 5px rgba(74, 222, 128, 0.9));
+  }
+  /* Liftoff and arc toward destination */
+  55% {
+    transform: translate(
+      calc(var(--dx) * 0.2),
+      calc(var(--dy) * 0.4 - 28px)
+    ) scale(0.9);
+    opacity: 1;
+    filter: none;
+  }
+  /* Landing squash-settle */
+  85% {
+    transform: translate(0px, 0px) scale(0.85);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+    opacity: 0;
+  }
+}
+
+.graduation-flight-clone {
+  position: fixed;
+  pointer-events: none;
+  user-select: none;
+  font-family: var(--font-main);
+  font-size: 0.875rem;
+  color: var(--success);
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 100;
+  animation: graduation-flight-arc 450ms ease-in-out forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .graduation-pulse {
     animation-duration: 400ms;
@@ -198,5 +242,10 @@ label {
   .graduation-count-tick {
     animation: none;
     color: var(--success);
+  }
+  .graduation-flight-clone {
+    /* Under reduced-motion the clone is invisible and animates away instantly so it self-cleans */
+    opacity: 0;
+    animation-duration: 1ms;
   }
 }
