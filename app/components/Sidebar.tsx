@@ -61,23 +61,13 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
             <div className="flex justify-between items-center mb-1">
               <span className="text-sm text-[#888]">{untouched.count} untouched</span>
               {untouched.next.length > UNTOUCHED_PEEK && (
-                isUntouchedExpanded ? (
-                  <button
-                    data-testid="untouched-collapse"
-                    onClick={() => setIsUntouchedExpanded(false)}
-                    className="text-xs text-[#666] hover:text-[#888]"
-                  >
-                    ▲ less
-                  </button>
-                ) : (
-                  <button
-                    data-testid="untouched-expand"
-                    onClick={() => setIsUntouchedExpanded(true)}
-                    className="text-xs text-[#666] hover:text-[#888]"
-                  >
-                    ▼ more
-                  </button>
-                )
+                <button
+                  data-testid={isUntouchedExpanded ? 'untouched-collapse' : 'untouched-expand'}
+                  onClick={() => setIsUntouchedExpanded(!isUntouchedExpanded)}
+                  className="text-xs text-[#666] hover:text-[#888]"
+                >
+                  {isUntouchedExpanded ? '▲ less' : '▼ more'}
+                </button>
               )}
             </div>
             <ul className="space-y-0.5">
