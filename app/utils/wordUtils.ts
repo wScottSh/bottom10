@@ -1,4 +1,4 @@
-import { scoreFromElapsed, wpmFromScore, graduationThreshold, meetsTarget } from './score';
+import { scoreFromElapsed, wpmFromScore, meetsTarget } from './score';
 import { updateGraduationCounter } from './graduation';
 
 export interface WordStats {
@@ -8,9 +8,6 @@ export interface WordStats {
   lastScore: number;
   consecutiveSubThreshold?: number;
 }
-
-export const calculateNormalizedScore = (avgTime: number, wordLength: number): number =>
-  scoreFromElapsed(avgTime, wordLength);
 
 // Returns the time spent typing a word: completion minus the first-keystroke
 // timestamp. Measuring from the first character (rather than from when the
@@ -59,10 +56,6 @@ export const computeWordTimingFromEvents = (events: KeystrokeEvent[]): number =>
   return 0;
 };
 
-// Converts a stored lastScore (ms/char) to WPM for display. This is the inverse of
-// calculateGraduationThreshold: both treat a word as a 5-char standard word.
-export const scoreToWpm = (lastScore: number): number => wpmFromScore(lastScore);
-
 // Pure decision function for WPM particles: computes the per-word WPM for a single
 // completion and determines whether it met the WPM target (green) or fell short (red).
 // Uses the same scoring pipeline as the stored stats so the particle and sidebar can
@@ -72,12 +65,9 @@ export const computeWpmParticle = (
   wordLength: number,
   wpmTarget: number
 ): { wpm: number; isFast: boolean } => {
-  const wpm = scoreToWpm(calculateNormalizedScore(elapsed, wordLength));
+  const wpm = wpmFromScore(scoreFromElapsed(elapsed, wordLength));
   return { wpm, isFast: meetsTarget(elapsed, wordLength, wpmTarget) };
 };
-
-export const calculateGraduationThreshold = (wpm: number): number =>
-  graduationThreshold(wpm);
 
 // Applies a finished session's typed words to the durable stats map.
 // Groups repeated words and averages their times; bumps attempts once per word group;
@@ -98,7 +88,7 @@ export const applySessionToStats = (
 
   Object.entries(wordGroups).forEach(([word, { totalTime, count }]) => {
     const avgTime = totalTime / count;
-    const sessionScore = calculateNormalizedScore(avgTime, word.length);
+    const sessionScore = scoreFromElapsed(avgTime, word.length);
     const prevAttempts = updatedStats[word]?.attempts || 0;
     const prevLastScore = updatedStats[word]?.lastScore || 0;
     // Running mean of per-session scores. With prevAttempts === 0 this reduces to

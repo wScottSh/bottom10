@@ -6,7 +6,8 @@ import {
   dedupeAdjacent,
   WORKING_SET_SIZE,
 } from './wordGeneration';
-import { WordStats, calculateGraduationThreshold } from './wordUtils';
+import { WordStats } from './wordUtils';
+import { graduationThreshold } from './score';
 import { isGraduated } from './graduation';
 
 // Shared helper: builds a WordStats map from a word list with optional per-word overrides.
@@ -28,7 +29,7 @@ describe('getTopWordsForTest', () => {
   });
 
   it('excludes graduated words', () => {
-    const threshold = calculateGraduationThreshold(60);
+    const threshold = graduationThreshold(60);
     const wordStats: Record<string, WordStats> = {
       fast: { word: 'fast', time: 100, attempts: 5, lastScore: threshold - 1, consecutiveSubThreshold: 2 },
       slow: { word: 'slow', time: 500, attempts: 5, lastScore: 500, consecutiveSubThreshold: 0 },
@@ -55,7 +56,7 @@ describe('getTopWordsForTest', () => {
   });
 
   it('returns empty array when all words are graduated', () => {
-    const threshold = calculateGraduationThreshold(60);
+    const threshold = graduationThreshold(60);
     const wordStats: Record<string, WordStats> = {
       a: { word: 'a', time: 100, attempts: 5, lastScore: threshold - 1, consecutiveSubThreshold: 2 },
       b: { word: 'b', time: 80,  attempts: 5, lastScore: threshold - 50, consecutiveSubThreshold: 2 },
