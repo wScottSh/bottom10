@@ -11,6 +11,7 @@ import { resetAppData } from '../utils/persistence';
 import { usePersistedWpmTarget } from '../hooks/usePersistedWpmTarget';
 import { usePersistedWordStats } from '../hooks/usePersistedWordStats';
 import { useTypingSession } from '../hooks/useTypingSession';
+import { ClockLike, WALL_CLOCK } from '../utils/clock';
 
 function createInitialWordStats(): Record<string, WordStats> {
   return wordList.reduce((acc, word) => ({
@@ -21,14 +22,14 @@ function createInitialWordStats(): Record<string, WordStats> {
 
 const INITIAL_WORD_STATS = createInitialWordStats();
 
-export default function TypingTest() {
+export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike } = {}) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [globalWordStats, setGlobalWordStats] = usePersistedWordStats(INITIAL_WORD_STATS);
   const [wpmTarget, setWpmTarget] = usePersistedWpmTarget();
 
   const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(true);
   const [words, setWords] = useState<string[]>([]);
-  const { session, applyKeystroke, reset: resetSession } = useTypingSession();
+  const { session, applyKeystroke, reset: resetSession } = useTypingSession({ clock });
   const [correctWords, setCorrectWords] = useState<number>(0);
   const [testEnded, setTestEnded] = useState<boolean>(false);
   const [typedWordsData, setTypedWordsData] = useState<TypedWord[]>([]);
@@ -95,7 +96,6 @@ export default function TypingTest() {
 
     const value = e.target.value;
     const currentWord = words[session.currentWordIndex];
-    const timestamp = Date.now();
 
     if (!currentWord) {
       finishTest();
@@ -105,7 +105,7 @@ export default function TypingTest() {
     const isLastWord = session.currentWordIndex + 1 === words.length;
     const wordIndex = session.currentWordIndex;
 
-    const completedWord = applyKeystroke(value, words, timestamp);
+    const completedWord = applyKeystroke(value, words);
 
     if (completedWord) {
       recordCompletedWord(completedWord, wordIndex);
