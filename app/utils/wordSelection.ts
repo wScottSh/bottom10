@@ -1,4 +1,5 @@
-import { WordStats, isGraduated, isGraduationCandidate, compareByScore } from './wordUtils';
+import { WordStats, compareByScore } from './wordUtils';
+import { isGraduated, isGraduationCandidate } from './graduation';
 import { wpmFromScore } from './score';
 
 export interface ActiveWordRow {
