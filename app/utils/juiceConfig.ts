@@ -1,6 +1,15 @@
 // Central tunables for end-of-test juice effects. CSS-driven values are mirrored
 // as CSS custom properties in globals.css so keyframes can reference them.
 
+export const TENSION_SHAKE = {
+  // Peak translation amplitude per axis at full intensity (in pixels).
+  maxTranslatePx: 3.5,
+  // Peak rotation amplitude at full intensity (in degrees).
+  maxRotateDeg: 2.5,
+  // Base jitter cycle duration (in milliseconds).
+  jitterDurationMs: 160,
+} as const;
+
 export const FINISH_PROMPT = {
   // Duration of one full pulse cycle (in/out), in milliseconds.
   pulseDurationMs: 2000,

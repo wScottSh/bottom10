@@ -8,6 +8,8 @@ import FinishPrompt from './FinishPrompt';
 import { computeWpmParticle, WordStats } from '../utils/wordUtils';
 import { generateWordSet } from '../utils/wordGeneration';
 import { CompletedWordOutcome, isAwaitingFinish } from '../utils/typingSession';
+import { shakeIntensity } from '../utils/shake';
+import { TENSION_SHAKE } from '../utils/juiceConfig';
 import { resetAppData } from '../utils/persistence';
 import { usePersistedProgress } from '../hooks/usePersistedProgress';
 import { useTestOrchestration } from '../hooks/useTestOrchestration';
@@ -65,6 +67,8 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
       wpmParticlesRef.current.spawn(x, y, wpm, isFast);
     }
   };
+
+  const intensity = shakeIntensity(session.currentWordIndex, words.length);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const wordIndex = session.currentWordIndex;
@@ -157,6 +161,12 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
           <div
             ref={wordsContainerRef}
             className="w-full px-8 relative text-2xl min-h-[120px] leading-relaxed"
+            style={{
+              '--shake-intensity': intensity,
+              '--tension-shake-translate-max': `${TENSION_SHAKE.maxTranslatePx}px`,
+              '--tension-shake-rotate-max': `${TENSION_SHAKE.maxRotateDeg}deg`,
+              '--tension-shake-duration': `${TENSION_SHAKE.jitterDurationMs}ms`,
+            } as React.CSSProperties}
           >
             <WpmParticles ref={wpmParticlesRef} />
             {words.map((word, wordIndex) => (
