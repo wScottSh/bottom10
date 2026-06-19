@@ -115,11 +115,15 @@ export function applyKeystroke(
     wordStartTimestamp,
   };
 
-  // Last-word direct completion: correct char fills the final word (no space needed).
-  const isLastWord = state.currentWordIndex + 1 === words.length;
-  if (isLastWord && newValue === currentWord) {
-    return { state: newState, completedWord: { word: currentWord, elapsed: elapsedSince(wordStartTimestamp) } };
-  }
-
   return { state: newState, completedWord: null };
+}
+
+// True only when the typist has fully and correctly typed the last word and is
+// waiting for the space press that completes the test (the Finish prompt state).
+export function isAwaitingFinish(state: TypingSessionState, words: string[]): boolean {
+  if (words.length === 0) return false;
+  const lastIndex = words.length - 1;
+  if (state.currentWordIndex !== lastIndex) return false;
+  if (state.isWordErrored) return false;
+  return state.currentInput === words[lastIndex];
 }

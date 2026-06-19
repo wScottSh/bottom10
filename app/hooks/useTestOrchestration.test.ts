@@ -26,15 +26,12 @@ function typeAllWords(result: { current: ReturnType<typeof useTestOrchestration>
   let input = '';
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
-    const isLast = i === words.length - 1;
     for (const ch of word) {
       input += ch;
       act(() => { result.current.handleKeystroke(input); });
     }
-    if (!isLast) {
-      act(() => { result.current.handleKeystroke(input + ' '); });
-      input = '';
-    }
+    act(() => { result.current.handleKeystroke(input + ' '); });
+    input = '';
   }
 }
 
@@ -131,7 +128,8 @@ describe('useTestOrchestration — stats folding on session completion', () => {
     for (let i = 1; i < second.length; i++) {
       act(() => { result.current.handleKeystroke(second.slice(0, i + 1)); });
     }
-    // Last word completes on its final character — no trailing space needed.
+    // Space completes the last word (space-to-finish path).
+    act(() => { result.current.handleKeystroke(second + ' '); });
 
     expect(setStats).toHaveBeenCalledOnce();
     const updatedStats: Record<string, WordStats> = setStats.mock.calls[0][0];
@@ -160,7 +158,7 @@ describe('useTestOrchestration — graduation detection', () => {
     word: string,
     startTime: number,
     duration: number,
-    isLast: boolean
+    _isLast: boolean
   ) {
     clock.setNow(startTime);
     act(() => { result.current.handleKeystroke(word[0]); });
@@ -168,9 +166,7 @@ describe('useTestOrchestration — graduation detection', () => {
     for (let i = 1; i < word.length; i++) {
       act(() => { result.current.handleKeystroke(word.slice(0, i + 1)); });
     }
-    if (!isLast) {
-      act(() => { result.current.handleKeystroke(word + ' '); });
-    }
+    act(() => { result.current.handleKeystroke(word + ' '); });
   }
 
   it('surfaces the newly graduated word when a round crosses GRADUATION_STREAK', () => {

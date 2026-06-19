@@ -4,9 +4,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
+import FinishPrompt from './FinishPrompt';
 import { computeWpmParticle, WordStats } from '../utils/wordUtils';
 import { generateWordSet } from '../utils/wordGeneration';
-import { CompletedWordOutcome } from '../utils/typingSession';
+import { CompletedWordOutcome, isAwaitingFinish } from '../utils/typingSession';
 import { resetAppData } from '../utils/persistence';
 import { usePersistedProgress } from '../hooks/usePersistedProgress';
 import { useTestOrchestration } from '../hooks/useTestOrchestration';
@@ -193,6 +194,7 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
               </span>
             ))}{/* Remove whitespace here */}
           </div>
+          <FinishPrompt visible={isAwaitingFinish(session, words)} />
           <input
             ref={inputRef}
             type="text"

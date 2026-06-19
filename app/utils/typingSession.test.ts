@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyKeystroke, TypingSessionState } from './typingSession';
+import { applyKeystroke, isAwaitingFinish, TypingSessionState } from './typingSession';
 
 const base: TypingSessionState = {
   currentInput: '',
@@ -170,10 +170,17 @@ describe('applyKeystroke — word completion outcome', () => {
     expect(next.wordStartTimestamp).toBeNull();
   });
 
-  it('emits completedWord on last-word direct completion (no space)', () => {
+  it('does NOT auto-complete the last word on its final character (space required)', () => {
     const state = { ...base, currentInput: 'worl', currentCharIndex: 4, currentWordIndex: 1, wordStartTimestamp: 2000 };
     const { completedWord } = applyKeystroke(state, 'world', words, 2600);
+    expect(completedWord).toBeNull();
+  });
+
+  it('completes the last word via space when fully and correctly typed', () => {
+    const state = { ...base, currentInput: 'world', currentCharIndex: 5, currentWordIndex: 1, wordStartTimestamp: 2000 };
+    const { completedWord, state: next } = applyKeystroke(state, 'world ', words, 2600);
     expect(completedWord).toEqual({ word: 'world', elapsed: 600 });
+    expect(next.currentWordIndex).toBe(2);
   });
 
   it('returns completedWord: null for non-completing character keystrokes', () => {
@@ -232,5 +239,36 @@ describe('applyKeystroke — word timing (wordStartTimestamp)', () => {
     const state = { ...base, currentInput: 'hello', currentCharIndex: 5, testStarted: true, wordStartTimestamp: 1000 };
     const { state: next } = applyKeystroke(state, 'hello ', words, 1500);
     expect(next.wordStartTimestamp).toBeNull();
+  });
+});
+
+describe('isAwaitingFinish', () => {
+  it('returns true when last word is fully and correctly typed, not errored', () => {
+    const state = { ...base, currentInput: 'world', currentCharIndex: 5, currentWordIndex: 1 };
+    expect(isAwaitingFinish(state, words)).toBe(true);
+  });
+
+  it('returns false when on a non-last word', () => {
+    const state = { ...base, currentInput: 'hello', currentCharIndex: 5, currentWordIndex: 0 };
+    expect(isAwaitingFinish(state, words)).toBe(false);
+  });
+
+  it('returns false when the last word is only partially typed', () => {
+    const state = { ...base, currentInput: 'wor', currentCharIndex: 3, currentWordIndex: 1 };
+    expect(isAwaitingFinish(state, words)).toBe(false);
+  });
+
+  it('returns false when the last word is errored', () => {
+    const state = { ...base, currentInput: 'world', currentCharIndex: 5, currentWordIndex: 1, isWordErrored: true };
+    expect(isAwaitingFinish(state, words)).toBe(false);
+  });
+
+  it('returns false when words array is empty', () => {
+    expect(isAwaitingFinish(base, [])).toBe(false);
+  });
+
+  it('returns false when current input is empty (not yet started last word)', () => {
+    const state = { ...base, currentWordIndex: 1 };
+    expect(isAwaitingFinish(state, words)).toBe(false);
   });
 });
