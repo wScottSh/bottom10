@@ -143,6 +143,17 @@ export const applySessionToStats = (
   return updatedStats;
 };
 
+// The canonical Score comparator: unscored words (score === 0) always rank after
+// scored words; among scored words, ascending (lower score = faster = better = first).
+// Both sidebar selection and working-set selection reuse this tiebreak;
+// the working set reverses the scored ordering but delegates the 0-check here.
+export const compareByScore = (scoreA: number, scoreB: number): number => {
+  if (!scoreA && scoreB) return 1;
+  if (scoreA && !scoreB) return -1;
+  if (!scoreA && !scoreB) return 0;
+  return scoreA - scoreB;
+};
+
 // Number of distinct words in a test's working set: the worst non-graduated
 // words are repeated across the test rather than drawing many unique words.
 export const WORKING_SET_SIZE = 10;
@@ -157,9 +168,9 @@ export const getTopWordsForTest = (wordStats: Record<string, WordStats>) => {
     }));
 
   const sortedCandidates = [...candidates].sort((a, b) => {
-    if (a.score === 0 && b.score !== 0) return 1;  // Unscored goes after scored
-    if (a.score !== 0 && b.score === 0) return -1;
-    return b.score - a.score;  // Higher scores (worse) first
+    // Delegate the unscored tiebreak to the canonical comparator
+    if (!a.score || !b.score) return compareByScore(a.score, b.score);
+    return b.score - a.score;  // Both scored: descending (highest score = worst first)
   });
 
   return sortedCandidates.slice(0, WORKING_SET_SIZE).map(entry => entry.word);
