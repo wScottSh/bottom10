@@ -28,8 +28,17 @@ A word's exit from the practice pool, earned after its **Score** stays under the
 **graduation threshold** for a number of consecutive tests.
 
 **Working set**:
-The handful of worst (highest-Score) non-graduated words that a test repeats,
-rather than drawing many unique words.
+The handful of non-graduated words that populate the current test and are
+repeated across it, rather than drawing many unique words. Membership is by test
+population — the worst (highest-Score) non-graduated words, topped up with
+**untouched** words when fewer than ten have a Score — *not* by Score itself.
+_Alias_: "the current ten" (its size is fixed at ten).
+
+**Untouched**:
+A word that has never been typed, so it has no **Score**. Most of the word list
+is untouched until practiced. An untouched word counts as part of the **working
+set** only while it is padding a sparse early test; otherwise it sits outside
+both the working set and the graduated set.
 
 **WPM particle**:
 A Borderlands-style number that pops off a word the moment it is completed,
