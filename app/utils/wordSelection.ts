@@ -7,6 +7,11 @@ export interface ActiveWordRow {
   isCandidate: boolean;
 }
 
+export interface GraduatedWordRow {
+  word: string;
+  wpm: number;
+}
+
 export const selectActiveWordRows = (
   wordStats: Record<string, WordStats>
 ): ActiveWordRow[] => {
@@ -22,5 +27,17 @@ export const selectActiveWordRows = (
       word,
       wpm: stats.lastScore > 0 ? wpmFromScore(stats.lastScore) : null,
       isCandidate: isGraduationCandidate(stats),
+    }));
+};
+
+export const selectGraduatedWordRows = (
+  wordStats: Record<string, WordStats>
+): GraduatedWordRow[] => {
+  return Object.entries(wordStats)
+    .filter(([, stats]) => isGraduated(stats))
+    .sort(([, a], [, b]) => a.lastScore - b.lastScore)
+    .map(([word, stats]) => ({
+      word,
+      wpm: wpmFromScore(stats.lastScore),
     }));
 };
