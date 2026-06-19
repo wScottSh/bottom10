@@ -1,4 +1,4 @@
-import { scoreFromElapsed, wpmFromScore, CHARS_PER_WORD, MS_PER_MINUTE } from './score';
+import { scoreFromElapsed, wpmFromScore, graduationThreshold, meetsTarget } from './score';
 
 export interface WordStats {
   word: string;
@@ -72,11 +72,11 @@ export const computeWpmParticle = (
   wpmTarget: number
 ): { wpm: number; isFast: boolean } => {
   const wpm = scoreToWpm(calculateNormalizedScore(elapsed, wordLength));
-  return { wpm, isFast: wpm >= wpmTarget };
+  return { wpm, isFast: meetsTarget(elapsed, wordLength, wpmTarget) };
 };
 
 export const calculateGraduationThreshold = (wpm: number): number =>
-  MS_PER_MINUTE / (wpm * CHARS_PER_WORD);
+  graduationThreshold(wpm);
 
 // Consecutive sub-threshold tests a word must accumulate before it graduates.
 const GRADUATION_STREAK = 2;

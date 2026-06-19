@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scoreFromElapsed, wpmFromScore } from './score';
+import { scoreFromElapsed, wpmFromScore, graduationThreshold, meetsTarget } from './score';
 
 describe('Score module', () => {
   describe('scoreFromElapsed', () => {
@@ -31,6 +31,37 @@ describe('Score module', () => {
 
     it('returns an integer (rounds)', () => {
       expect(Number.isInteger(wpmFromScore(233))).toBe(true);
+    });
+  });
+
+  describe('graduationThreshold', () => {
+    it('returns ms-per-char at the target WPM (60 wpm → 200 ms/char)', () => {
+      expect(graduationThreshold(60)).toBe(200);
+    });
+
+    it('returns ms-per-char at the target WPM (120 wpm → 100 ms/char)', () => {
+      expect(graduationThreshold(120)).toBe(100);
+    });
+
+    it('returns ms-per-char at the target WPM (40 wpm → 300 ms/char)', () => {
+      expect(graduationThreshold(40)).toBe(300);
+    });
+  });
+
+  describe('meetsTarget', () => {
+    it('returns true when word is faster than the target (wpm > target)', () => {
+      // elapsed=1000ms, len=5 → score=200ms/char → wpm=60 > 50
+      expect(meetsTarget(1000, 5, 50)).toBe(true);
+    });
+
+    it('returns false when word is slower than the target (wpm < target)', () => {
+      // elapsed=2000ms, len=5 → score=400ms/char → wpm=30 < 50
+      expect(meetsTarget(2000, 5, 50)).toBe(false);
+    });
+
+    it('returns true when word is exactly at the target (equal counts as meeting)', () => {
+      // elapsed=1200ms, len=5 → score=240ms/char → wpm=50 (exactly at target=50)
+      expect(meetsTarget(1200, 5, 50)).toBe(true);
     });
   });
 
