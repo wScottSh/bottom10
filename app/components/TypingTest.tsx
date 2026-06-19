@@ -116,6 +116,7 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
       <Sidebar
         isOpen={isSidebarOpen}
         wordStats={globalWordStats}
+        allWords={wordList}
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         onWpmChange={handleWpmChange}
         wpmTarget={wpmTarget}

@@ -1,4 +1,4 @@
-import { WordStats, compareByScore } from './wordUtils';
+import { WordStats, compareByScore, getTopWordsForTest, WORKING_SET_SIZE } from './wordUtils';
 import { isGraduated, isGraduationCandidate } from './graduation';
 import { wpmFromScore } from './score';
 
@@ -36,4 +36,55 @@ export const selectGraduatedWordRows = (
       word,
       wpm: wpmFromScore(stats.lastScore),
     }));
+};
+
+export interface WorkingSetWord {
+  word: string;
+  wpm: number | null;
+  streak: number;
+  isCandidate: boolean;
+}
+
+export interface LifecycleView {
+  workingSet: WorkingSetWord[];
+  untouched: { count: number; next: string[] };
+  graduated: GraduatedWordRow[];
+}
+
+// Builds a snapshot of the word lifecycle for sidebar display.
+// workingSet matches getTopWordsForTest's order (worst-first), padded with
+// untouched words from allWords when fewer than WORKING_SET_SIZE have stats.
+export const buildLifecycleView = (
+  wordStats: Record<string, WordStats>,
+  allWords: string[]
+): LifecycleView => {
+  const topWords = getTopWordsForTest(wordStats);
+
+  // Pad with untouched words (not in wordStats at all) if needed
+  const untouchedAll = allWords.filter(w => !wordStats[w]);
+  const paddingNeeded = WORKING_SET_SIZE - topWords.length;
+  const paddingWords = paddingNeeded > 0 ? untouchedAll.slice(0, paddingNeeded) : [];
+  const workingSetWords = [...topWords, ...paddingWords];
+  const workingSetWordSet = new Set(workingSetWords);
+
+  const workingSet: WorkingSetWord[] = workingSetWords.map(word => {
+    const stats = wordStats[word];
+    return {
+      word,
+      wpm: stats && stats.lastScore > 0 ? wpmFromScore(stats.lastScore) : null,
+      streak: stats?.consecutiveSubThreshold ?? 0,
+      isCandidate: stats ? isGraduationCandidate(stats) : false,
+    };
+  });
+
+  const remainingUntouched = allWords.filter(w => !wordStats[w] && !workingSetWordSet.has(w));
+
+  return {
+    workingSet,
+    untouched: {
+      count: remainingUntouched.length,
+      next: remainingUntouched.slice(0, 3),
+    },
+    graduated: selectGraduatedWordRows(wordStats),
+  };
 };

@@ -2,11 +2,8 @@
 
 import { useState, KeyboardEvent } from 'react';
 import { WordStats } from '../utils/wordUtils';
-import { selectActiveWordRows } from '../utils/wordSelection';
+import { buildLifecycleView } from '../utils/wordSelection';
 
-// Color for a word's status: graduation candidates get a highlight, while
-// ordinary words fall back to a caller-supplied default. Graduated words are
-// excluded from the list upstream, so they never reach this helper.
 const getStatusColor = (isCandidate: boolean, fallback: string): string => {
   if (isCandidate) return 'text-cyan-400';
   return fallback;
@@ -15,12 +12,13 @@ const getStatusColor = (isCandidate: boolean, fallback: string): string => {
 interface SidebarProps {
   isOpen: boolean;
   wordStats: Record<string, WordStats>;
+  allWords: string[];
   toggleSidebar: () => void;
   onWpmChange: (wpm: number) => void;
   wpmTarget: number;
 }
 
-export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange, wpmTarget }: SidebarProps) {
+export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, onWpmChange, wpmTarget }: SidebarProps) {
   const [isEditingWpm, setIsEditingWpm] = useState(false);
   const [tempWpm, setTempWpm] = useState('');
 
@@ -39,7 +37,7 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange,
     }
   };
 
-  const sortedWords = selectActiveWordRows(wordStats);
+  const { workingSet } = buildLifecycleView(wordStats, allWords);
 
   return (
     <div className={`fixed left-0 top-0 h-full bg-[#2c2c2c] transition-all duration-300 ${
@@ -55,7 +53,7 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange,
       <div className="h-full overflow-y-auto p-4">
         {/* WPM Target UI */}
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg text-[#e2e2e2]">Word List</h2>
+          <h2 className="text-lg text-[#e2e2e2]">Current ten</h2>
           {isEditingWpm ? (
             <div className="flex items-center gap-2">
               <input
@@ -84,7 +82,7 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange,
         </div>
 
         <ul className="space-y-1">
-          {sortedWords.map(({ word, wpm, isCandidate }, index) => {
+          {workingSet.map(({ word, wpm, isCandidate }, index) => {
             const wordColor = getStatusColor(isCandidate, '');
             const wpmColor = getStatusColor(isCandidate, 'text-[#e2b714]');
             return (
@@ -99,7 +97,6 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange,
                     </span>
                   )}
                 </div>
-                {index === 9 && <hr className="my-2 border-[#e2b714]" />}
               </li>
             );
           })}
