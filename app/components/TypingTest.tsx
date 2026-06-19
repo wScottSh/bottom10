@@ -10,7 +10,7 @@ import { computeWpmParticle, WordStats } from '../utils/wordUtils';
 import { generateWordSet } from '../utils/wordGeneration';
 import { CompletedWordOutcome, isAwaitingFinish } from '../utils/typingSession';
 import { shakeIntensity } from '../utils/shake';
-import { TENSION_SHAKE, DETONATION } from '../utils/juiceConfig';
+import { TENSION_SHAKE, DETONATION, FADE_IN } from '../utils/juiceConfig';
 import { resetAppData } from '../utils/persistence';
 import { usePersistedProgress } from '../hooks/usePersistedProgress';
 import { useTestOrchestration } from '../hooks/useTestOrchestration';
@@ -35,6 +35,7 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
   const wpmParticlesRef = useRef<WpmParticlesHandle>(null);
   const detonationRef = useRef<DetonationHandle>(null);
   const [isPunching, setIsPunching] = useState(false);
+  const [isFadingIn, setIsFadingIn] = useState(false);
 
   const {
     words,
@@ -99,6 +100,8 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
         // Hold the punch class slightly past the animation so it fully completes before removal.
         setTimeout(() => setIsPunching(false), DETONATION.punchDurationMs + 50);
       }
+      setIsFadingIn(true);
+      setTimeout(() => setIsFadingIn(false), FADE_IN.durationMs);
     }
 
     const completed = handleKeystroke(newValue);
@@ -200,7 +203,11 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
           >
             <WpmParticles ref={wpmParticlesRef} />
             <DetonationParticles ref={detonationRef} />
-            {words.map((word, wordIndex) => (
+            <div
+              data-testid="words-field"
+              className={isFadingIn ? 'words-fade-in' : ''}
+              style={{ '--words-fade-in-duration': `${FADE_IN.durationMs}ms` } as React.CSSProperties}
+            >{words.map((word, wordIndex) => (
               <span
                 key={wordIndex}
                 ref={el => { wordSpanRefs.current[wordIndex] = el; }}
@@ -233,7 +240,7 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
                   )}
                 </span>{/* Remove whitespace here */}
               </span>
-            ))}{/* Remove whitespace here */}
+            ))}{/* Remove whitespace here */}</div>
           </div>
           <FinishPrompt visible={isAwaitingFinish(session, words)} />
           <input

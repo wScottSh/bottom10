@@ -21,6 +21,11 @@ export const FINISH_PROMPT = {
   pulseOpacityMin: 0.55,
 } as const;
 
+export const FADE_IN = {
+  // Duration of the next-test fade-in (opacity 0→1) on test completion (milliseconds).
+  durationMs: 180,
+} as const;
+
 export const DETONATION = {
   // Base outward fling distance per letter (pixels).
   velocityPx: 700,
