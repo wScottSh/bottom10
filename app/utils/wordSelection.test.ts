@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { selectActiveWordRows } from './wordSelection';
+import { selectActiveWordRows, selectGraduatedWordRows } from './wordSelection';
 import { WordStats } from './wordUtils';
 
 const makeStats = (overrides: Partial<WordStats> = {}): WordStats => ({
@@ -79,5 +79,46 @@ describe('selectActiveWordRows', () => {
     };
     const rows = selectActiveWordRows(wordStats);
     expect(rows.map(r => r.word)).toEqual(['active']);
+  });
+});
+
+describe('selectGraduatedWordRows', () => {
+  it('returns empty array for empty stats', () => {
+    expect(selectGraduatedWordRows({})).toEqual([]);
+  });
+
+  it('returns only graduated words', () => {
+    const wordStats = {
+      active: makeStats({ lastScore: 200, consecutiveSubThreshold: 0 }),
+      graduated: makeStats({ lastScore: 100, consecutiveSubThreshold: 2 }),
+    };
+    const rows = selectGraduatedWordRows(wordStats);
+    expect(rows.map(r => r.word)).toEqual(['graduated']);
+  });
+
+  it('sorts graduated words ascending by lastScore (best/lowest Score first)', () => {
+    const wordStats = {
+      slow: makeStats({ lastScore: 300, consecutiveSubThreshold: 2 }),
+      fast: makeStats({ lastScore: 120, consecutiveSubThreshold: 2 }),
+      medium: makeStats({ lastScore: 200, consecutiveSubThreshold: 2 }),
+    };
+    const rows = selectGraduatedWordRows(wordStats);
+    expect(rows.map(r => r.word)).toEqual(['fast', 'medium', 'slow']);
+  });
+
+  it('sets wpm from lastScore for each graduated word', () => {
+    const wordStats = {
+      word: makeStats({ lastScore: 200, consecutiveSubThreshold: 2 }), // 60 wpm
+    };
+    const rows = selectGraduatedWordRows(wordStats);
+    expect(rows[0].wpm).toBe(60);
+  });
+
+  it('excludes non-graduated words', () => {
+    const wordStats = {
+      candidate: makeStats({ lastScore: 100, consecutiveSubThreshold: 1 }),
+      active: makeStats({ lastScore: 150, consecutiveSubThreshold: 0 }),
+    };
+    expect(selectGraduatedWordRows(wordStats)).toEqual([]);
   });
 });
