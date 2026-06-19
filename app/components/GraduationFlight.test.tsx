@@ -107,4 +107,36 @@ describe('GraduationFlight — flight clones (FLIP animation)', () => {
     // Landing pulse still fires
     expect(container.querySelector('[data-testid="graduation-pulse"]')).not.toBeNull();
   });
+
+  it('does not render flight clones under prefers-reduced-motion — landing pulse still fires', () => {
+    const original = window.matchMedia;
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: (query: string) => ({
+        matches: query === '(prefers-reduced-motion: reduce)',
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }),
+    });
+
+    try {
+      const { container } = render(
+        <GraduationFlight newlyGraduated={['foo']} flightSources={[makeSource('foo')]} />
+      );
+      expect(container.querySelector('[data-testid="graduation-flight-clone"]')).toBeNull();
+      expect(container.querySelector('[data-testid="graduation-pulse"]')).not.toBeNull();
+    } finally {
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  });
 });
