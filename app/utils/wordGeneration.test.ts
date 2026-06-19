@@ -4,6 +4,7 @@ import {
   generateWordSet,
   getTopWordsForTest,
   dedupeAdjacent,
+  spreadEvenly,
   WORKING_SET_SIZE,
 } from './wordGeneration';
 import { WordStats } from './wordUtils';
@@ -222,6 +223,52 @@ describe('generateWordSet — no adjacent duplicates', () => {
     const allWords = Array.from({ length: 10 }, (_, i) => `word${i}`);
     for (let i = 0; i < 10; i++) {
       expect(hasAdjacentDupe(generateWordSet(30, {}, allWords))).toBe(false);
+    }
+  });
+});
+
+describe('generateWordSet — even distribution (no two-word back-and-forth)', () => {
+  // Length of the longest run of strict A-B-A-B alternation between the same two
+  // words. A lone "A B A" is length 3 and unavoidable; sustained "for of for of
+  // for of" is what users perceive as bunching. The pre-fix greedy frequency
+  // re-sort produced runs of ~6+; even spread keeps them near the floor.
+  const longestAlternationRun = (arr: string[]): number => {
+    let longest = 0;
+    let cur = 0;
+    for (let i = 2; i < arr.length; i++) {
+      if (arr[i] === arr[i - 2] && arr[i] !== arr[i - 1]) cur = cur === 0 ? 3 : cur + 1;
+      else cur = 0;
+      longest = Math.max(longest, cur);
+    }
+    return longest;
+  };
+
+  it('does not bunch the two highest-frequency words into a long alternation', () => {
+    // Mirrors the reported scenario: two clearly-worst words plus a tail of
+    // milder ones, which the convex distribution turns into two high counts.
+    const allWords = ['for', 'of', 'is', 'are', 'was', 'in', 'on', 'as', 'I', 'his'];
+    const stats: Record<string, WordStats> = {};
+    const scores = [900, 800, 700, 620, 560, 520, 360, 250, 150, 120];
+    allWords.forEach((w, i) => (stats[w] = { word: w, time: 500, attempts: 3, lastScore: scores[i] }));
+
+    let runTotal = 0;
+    const runs = 40;
+    for (let i = 0; i < runs; i++) {
+      runTotal += longestAlternationRun(generateWordSet(50, stats, allWords));
+    }
+    // Old behaviour averaged ~6+; the even spread sits near the ~3 floor.
+    expect(runTotal / runs).toBeLessThan(4.5);
+  });
+
+  it('spreads a dominant word across the whole test rather than clustering it', () => {
+    // "for" appears 20 of 40 slots; its occurrences should span the full range,
+    // not huddle in one half.
+    const words = Array.from({ length: 40 }, (_, i) => (i < 20 ? 'for' : `w${i}`));
+    for (let i = 0; i < 20; i++) {
+      const spread = spreadEvenly(words);
+      const positions = spread.map((w, idx) => (w === 'for' ? idx : -1)).filter(idx => idx >= 0);
+      const span = positions[positions.length - 1] - positions[0];
+      expect(span).toBeGreaterThan(spread.length * 0.7);
     }
   });
 });

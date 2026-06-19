@@ -18,41 +18,79 @@ export const getTopWordsForTest = (wordStats: Record<string, WordStats>): string
   return sortedCandidates.slice(0, WORKING_SET_SIZE).map(entry => entry.word);
 };
 
-export const shuffleArray = (array: string[]): string[] =>
-  [...array].sort(() => Math.random() - 0.5);
-
-// Rearranges arr in-place so no two adjacent elements are equal.
-// Uses a greedy frequency-first strategy; gives up gracefully when one word
-// dominates more than half the slots.
-export const dedupeAdjacent = (array: string[]): string[] => {
-  if (array.length <= 1) return array;
+// Spreads each word's repeats as evenly as possible across the whole test,
+// randomized, with no two identical words adjacent. Replaces the old
+// shuffle-then-greedy-resort, which clustered the two most-frequent words into a
+// "for of for of" back-and-forth.
+//
+// Stratified placement: a word that occurs c times is dropped into c equal bands
+// spanning [0, 1) — its j-th copy lands at (j + random()) / c, one copy per band,
+// jittered within the band. Sorting every copy by this key interleaves all words
+// evenly while keeping the order random. A final local-swap pass (dedupeAdjacent)
+// repairs the rare residual adjacency without disturbing the even spacing.
+// Words that occur once collapse to key = random(), so an all-distinct list is
+// simply given a uniform shuffle.
+export const spreadEvenly = (words: string[]): string[] => {
+  if (words.length <= 1) return [...words];
 
   const freq = new Map<string, number>();
-  for (const w of array) freq.set(w, (freq.get(w) ?? 0) + 1);
+  for (const w of words) freq.set(w, (freq.get(w) ?? 0) + 1);
+
+  const keyed: Array<{ word: string; key: number }> = [];
+  for (const [word, count] of freq) {
+    for (let j = 0; j < count; j++) {
+      keyed.push({ word, key: (j + Math.random()) / count });
+    }
+  }
+  keyed.sort((a, b) => a.key - b.key);
+
+  return dedupeAdjacent(keyed.map(k => k.word));
+};
+
+// Removes adjacent duplicates in-place while disturbing the incoming order as
+// little as possible. At each output slot it normally takes the earliest
+// not-yet-placed word that differs from the one just placed — so a list that is
+// already evenly spread stays that way. The exception keeps it *complete*: the
+// moment some word's remaining count reaches ceil(slotsLeft / 2) it can only fit
+// if placed on every remaining other slot, so that word is force-placed ahead of
+// order. This yields a dupe-free ordering whenever one exists (no word claims
+// more than ceil(n/2) slots) and gives up gracefully — emitting leftover
+// repeats — only when the input is genuinely unsatisfiable.
+export const dedupeAdjacent = (array: string[]): string[] => {
+  const n = array.length;
+  if (n <= 1) return array;
+
+  const remaining = new Map<string, number>();
+  for (const w of array) remaining.set(w, (remaining.get(w) ?? 0) + 1);
+  const pool = [...array];
 
   const result: string[] = [];
   let prev = '';
-
-  while (result.length < array.length) {
-    let bestWord = '';
-    let bestCount = 0;
-    for (const [word, count] of freq) {
-      if (word !== prev && count > bestCount) {
-        bestWord = word;
-        bestCount = count;
+  while (pool.length > 0) {
+    let critical = '';
+    let criticalCount = 0;
+    for (const [word, count] of remaining) {
+      if (word !== prev && count > criticalCount) {
+        critical = word;
+        criticalCount = count;
       }
     }
-    if (!bestWord) {
-      bestWord = freq.keys().next().value as string;
+
+    let idx: number;
+    if (critical && criticalCount >= Math.ceil(pool.length / 2)) {
+      idx = pool.indexOf(critical);
+    } else {
+      idx = pool.findIndex(w => w !== prev);
+      if (idx === -1) idx = 0; // only copies of prev remain — unsatisfiable, give up
     }
-    result.push(bestWord);
-    prev = bestWord;
-    const remaining = freq.get(bestWord)! - 1;
-    if (remaining === 0) freq.delete(bestWord);
-    else freq.set(bestWord, remaining);
+
+    prev = pool[idx];
+    result.push(prev);
+    remaining.set(prev, remaining.get(prev)! - 1);
+    pool.splice(idx, 1);
   }
 
-  for (let i = 0; i < result.length; i++) array[i] = result[i];
+  for (let i = 0; i < n; i++) array[i] = result[i];
   return array;
 };
 
@@ -162,18 +200,17 @@ export const generateWordSet = (
   if (selectedWords.length === 0 || !hasScoredWord) {
     const unscoredWords = filterUnscored(allWords, wordStats);
     const initialSet = unscoredWords.slice(0, WORKING_SET_SIZE);
-    const repeatedInitial = initialSet.length === 0
+    wordsForTest = initialSet.length === 0
       ? []
       : Array.from({ length: count }, (_, i) => initialSet[i % initialSet.length]);
-    wordsForTest = shuffleArray(repeatedInitial);
   } else {
-    const repeatedWords = expandDistribution(buildWordDistribution(selectedWords, wordStats, count));
-    wordsForTest = shuffleArray(repeatedWords);
+    wordsForTest = expandDistribution(buildWordDistribution(selectedWords, wordStats, count));
   }
 
   if (wordsForTest.length === 0) {
-    wordsForTest = shuffleArray(filterNonGraduated(allWords, wordStats)).slice(0, count);
+    // last-resort padding: a random count-sized subset of any non-graduated words.
+    return spreadEvenly(filterNonGraduated(allWords, wordStats)).slice(0, count);
   }
 
-  return dedupeAdjacent(wordsForTest);
+  return spreadEvenly(wordsForTest);
 };
