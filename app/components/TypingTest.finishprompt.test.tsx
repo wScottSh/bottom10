@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/react';
 import React from 'react';
-import { vi } from 'vitest';
 
 vi.mock('../data/wordList', () => ({ default: ['ab'] }));
 vi.mock('../utils/wordGeneration', () => ({
