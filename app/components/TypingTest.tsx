@@ -1,16 +1,16 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
-import GraduatedSidebar from './GraduatedSidebar';
 import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
-import { generateWordSet, computeWpmParticle, applySessionToStats, TypedWord, WordStats } from '../utils/wordUtils';
+import { computeWpmParticle, WordStats } from '../utils/wordUtils';
+import { generateWordSet } from '../utils/wordGeneration';
 import { CompletedWordOutcome } from '../utils/typingSession';
 import { resetAppData } from '../utils/persistence';
-import { usePersistedWpmTarget } from '../hooks/usePersistedWpmTarget';
-import { usePersistedWordStats } from '../hooks/usePersistedWordStats';
-import { useTypingSession } from '../hooks/useTypingSession';
+import { usePersistedProgress } from '../hooks/usePersistedProgress';
+import { useTestOrchestration } from '../hooks/useTestOrchestration';
+import { ClockLike, WALL_CLOCK } from '../utils/clock';
 
 function createInitialWordStats(): Record<string, WordStats> {
   return wordList.reduce((acc, word) => ({
@@ -21,58 +21,37 @@ function createInitialWordStats(): Record<string, WordStats> {
 
 const INITIAL_WORD_STATS = createInitialWordStats();
 
-export default function TypingTest() {
+export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike } = {}) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [globalWordStats, setGlobalWordStats] = usePersistedWordStats(INITIAL_WORD_STATS);
-  const [wpmTarget, setWpmTarget] = usePersistedWpmTarget();
-
-  const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(true);
-  const [words, setWords] = useState<string[]>([]);
-  const { session, applyKeystroke, reset: resetSession } = useTypingSession();
-  const [correctWords, setCorrectWords] = useState<number>(0);
-  const [testEnded, setTestEnded] = useState<boolean>(false);
-  const [typedWordsData, setTypedWordsData] = useState<TypedWord[]>([]);
+  const { wordStats: globalWordStats, setWordStats: setGlobalWordStats, wpmTarget, setWpmTarget } = usePersistedProgress(INITIAL_WORD_STATS);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const wordsContainerRef = useRef<HTMLDivElement>(null);
   const wordSpanRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const wpmParticlesRef = useRef<WpmParticlesHandle>(null);
-  const [wordCount, setWordCount] = useState<number>(50);
 
-  // Load a freshly generated word set and reset all per-test state.
-  const startTestWithWords = useCallback((newWords: string[]) => {
-    if (newWords.length === 0) return;
-    setWords(newWords);
-    setCorrectWords(0);
-    setTypedWordsData([]);
-    setTestEnded(false);
-    resetSession();
-    inputRef.current?.focus();
-  }, []);
+  const {
+    words,
+    wordCount,
+    setWordCount,
+    session,
+    handleKeystroke,
+    startWithWords,
+  } = useTestOrchestration({
+    globalWordStats,
+    setGlobalWordStats,
+    wpmTarget,
+    allWords: wordList,
+    clock,
+  });
 
-  const startNewTest = useCallback(() => {
-    startTestWithWords(generateWordSet(wordCount, globalWordStats, wordList));
-  }, [wordCount, globalWordStats, startTestWithWords]);
-
+  // Focus the hidden input whenever a new word set loads (mount and after every restart).
   useEffect(() => {
-    startNewTest();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (words.length > 0) inputRef.current?.focus();
+  }, [words]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (testEnded && e.key === 'Enter') {
-        startNewTest();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [testEnded, startNewTest]);
-
-  // Consumes a completed-word outcome from the reducer: measures the word span's
-  // bounding rect and spawns a WPM particle. Timing is owned by the reducer.
-  const recordCompletedWord = (outcome: CompletedWordOutcome, wordIndex: number) => {
+  // Spawns a WPM particle above the word span for a completed word.
+  const spawnParticle = (outcome: CompletedWordOutcome, wordIndex: number) => {
     const wordSpan = wordSpanRefs.current[wordIndex];
     const container = wordsContainerRef.current;
     if (wordSpan && container && wpmParticlesRef.current) {
@@ -83,47 +62,12 @@ export default function TypingTest() {
       const { wpm, isFast } = computeWpmParticle(outcome.elapsed, outcome.word.length, wpmTarget);
       wpmParticlesRef.current.spawn(x, y, wpm, isFast);
     }
-
-    setTypedWordsData(prev => [
-      ...prev,
-      { word: outcome.word, time: outcome.elapsed, errors: 0 }
-    ]);
   };
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (testEnded) return;
-
-    const value = e.target.value;
-    const currentWord = words[session.currentWordIndex];
-    const timestamp = Date.now();
-
-    if (!currentWord) {
-      finishTest();
-      return;
-    }
-
-    const isLastWord = session.currentWordIndex + 1 === words.length;
     const wordIndex = session.currentWordIndex;
-
-    const completedWord = applyKeystroke(value, words, timestamp);
-
-    if (completedWord) {
-      recordCompletedWord(completedWord, wordIndex);
-      // Finishing the last word ends the test; startTestWithWords resets all state.
-      if (isLastWord) {
-        finishTest();
-        return;
-      }
-      setCorrectWords(correctWords + 1);
-    }
-  };
-
-  const finishTest = () => {
-    const updatedStats = applySessionToStats(globalWordStats, typedWordsData, wpmTarget);
-    const newWords = generateWordSet(wordCount, updatedStats, wordList);
-
-    setGlobalWordStats(updatedStats);
-    startTestWithWords(newWords);
+    const completed = handleKeystroke(e.target.value);
+    if (completed) spawnParticle(completed, wordIndex);
   };
 
   const toggleSettings = () => {
@@ -160,7 +104,7 @@ export default function TypingTest() {
     resetAppData();
     const freshStats = createInitialWordStats();
     setGlobalWordStats(freshStats);
-    startTestWithWords(generateWordSet(wordCount, freshStats, wordList));
+    startWithWords(generateWordSet(wordCount, freshStats, wordList));
   };
 
   return (
@@ -169,18 +113,13 @@ export default function TypingTest() {
       <Sidebar
         isOpen={isSidebarOpen}
         wordStats={globalWordStats}
+        allWords={wordList}
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         onWpmChange={handleWpmChange}
         wpmTarget={wpmTarget}
       />
-      <GraduatedSidebar
-        isOpen={isGraduatedSidebarOpen}
-        wordStats={globalWordStats}
-        toggleSidebar={() => setIsGraduatedSidebarOpen(!isGraduatedSidebarOpen)}
-      />
       <div className={`flex-1 min-h-screen flex items-center transition-all duration-300
-        ${isSidebarOpen ? 'ml-64' : ''}
-        ${isGraduatedSidebarOpen ? 'mr-64' : ''}`}
+        ${isSidebarOpen ? 'ml-64' : ''}`}
       >
         <div className="flex flex-col items-center gap-4 w-full px-16" onClick={() => inputRef.current?.focus()}>
           <div className="flex items-center justify-between w-full px-8">

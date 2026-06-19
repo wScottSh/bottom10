@@ -41,7 +41,7 @@ export function createInMemoryStorage(initial: Record<string, string> = {}): Sto
   };
 }
 
-function getSafeStorage(provided?: StorageLike): StorageLike {
+export function getSafeStorage(provided?: StorageLike): StorageLike {
   if (provided) return provided;
   if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
     return localStorage;
