@@ -37,6 +37,7 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
     session,
     handleKeystroke,
     startWithWords,
+    newlyGraduated,
   } = useTestOrchestration({
     globalWordStats,
     setGlobalWordStats,
@@ -117,6 +118,7 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         onWpmChange={handleWpmChange}
         wpmTarget={wpmTarget}
+        newlyGraduated={newlyGraduated}
       />
       <div className={`flex-1 min-h-screen flex items-center transition-all duration-300
         ${isSidebarOpen ? 'ml-64' : ''}`}

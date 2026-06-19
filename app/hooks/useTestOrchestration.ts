@@ -4,6 +4,7 @@ import { generateWordSet } from '../utils/wordGeneration';
 import { CompletedWordOutcome } from '../utils/typingSession';
 import { ClockLike } from '../utils/clock';
 import { useTypingSession } from './useTypingSession';
+import { detectGraduations } from '../utils/graduation';
 
 export function useTestOrchestration(opts: {
   globalWordStats: Record<string, WordStats>;
@@ -15,6 +16,7 @@ export function useTestOrchestration(opts: {
 }) {
   const [words, setWords] = useState<string[]>([]);
   const [wordCount, setWordCount] = useState(opts.wordCount ?? 50);
+  const [newlyGraduated, setNewlyGraduated] = useState<string[]>([]);
   const { session, applyKeystroke, reset: resetSession } = useTypingSession({ clock: opts.clock });
 
   // Per-test accumulator of completed words; never rendered, so a ref (not state)
@@ -81,13 +83,12 @@ export function useTestOrchestration(opts: {
     typedWordsRef.current = updatedTypedWords;
 
     if (isLastWord) {
-      const updatedStats = applySessionToStats(
-        globalWordStatsRef.current,
-        updatedTypedWords,
-        wpmTargetRef.current
-      );
+      const prevStats = globalWordStatsRef.current;
+      const updatedStats = applySessionToStats(prevStats, updatedTypedWords, wpmTargetRef.current);
+      const graduated = detectGraduations(prevStats, updatedStats);
       const newWords = generateWordSet(wordCountRef.current, updatedStats, allWordsRef.current);
       setGlobalWordStatsRef.current(updatedStats);
+      setNewlyGraduated(graduated);
       startWithWords(newWords);
     }
 
@@ -101,5 +102,6 @@ export function useTestOrchestration(opts: {
     session,
     handleKeystroke,
     startWithWords,
+    newlyGraduated,
   };
 }

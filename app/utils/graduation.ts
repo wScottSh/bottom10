@@ -26,3 +26,14 @@ export const updateGraduationCounter = (stats: WordStats, wpm: number): WordStat
     consecutiveSubThreshold: subThreshold ? (stats.consecutiveSubThreshold ?? 0) + 1 : 0,
   };
 };
+
+// Returns the words whose graduated status flipped false→true between two stat snapshots.
+// Words that were already graduated in prevStats are excluded — only true new graduations.
+export const detectGraduations = (
+  prevStats: Record<string, WordStats>,
+  nextStats: Record<string, WordStats>
+): string[] =>
+  Object.keys(nextStats).filter(word => {
+    const prev = prevStats[word];
+    return isGraduated(nextStats[word]) && (prev === undefined || !isGraduated(prev));
+  });

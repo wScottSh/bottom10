@@ -4,6 +4,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useTestOrchestration } from './useTestOrchestration';
 import { createControllableClock } from '../utils/clock';
 import type { WordStats } from '../utils/wordUtils';
+import { GRADUATION_STREAK } from '../utils/graduation';
 
 // Two short words so tests can type through a full set quickly
 const TWO_WORDS = ['go', 'up'];
@@ -148,5 +149,69 @@ describe('useTestOrchestration — stats folding on session completion', () => {
     // The next set must have been generated from the fresh stats (session restarted).
     expect(result.current.session.testStarted).toBe(false);
     expect(result.current.words).toHaveLength(2);
+  });
+});
+
+describe('useTestOrchestration — graduation detection', () => {
+  // Type a single word with controlled timing: first char at startTime, completion at startTime+duration.
+  function typeWordTimed(
+    result: { current: ReturnType<typeof useTestOrchestration> },
+    clock: ReturnType<typeof createControllableClock>,
+    word: string,
+    startTime: number,
+    duration: number,
+    isLast: boolean
+  ) {
+    clock.setNow(startTime);
+    act(() => { result.current.handleKeystroke(word[0]); });
+    clock.setNow(startTime + duration);
+    for (let i = 1; i < word.length; i++) {
+      act(() => { result.current.handleKeystroke(word.slice(0, i + 1)); });
+    }
+    if (!isLast) {
+      act(() => { result.current.handleKeystroke(word + ' '); });
+    }
+  }
+
+  it('surfaces the newly graduated word when a round crosses GRADUATION_STREAK', () => {
+    const clock = createControllableClock(1000);
+    const setStats = vi.fn();
+
+    // 'go' is one round from graduating; 'up' is fresh.
+    const preSeededStats: Record<string, WordStats> = {
+      go: {
+        word: 'go', time: 200, attempts: 1, lastScore: 100,
+        consecutiveSubThreshold: GRADUATION_STREAK - 1,
+      },
+    };
+
+    const { result } = renderHook(() =>
+      useTestOrchestration(makeOpts({
+        globalWordStats: preSeededStats,
+        setGlobalWordStats: setStats,
+        wpmTarget: 60, // threshold = 200 ms/char
+        allWords: TWO_WORDS,
+        wordCount: 2,
+        clock,
+      }))
+    );
+
+    // Type all words: elapsed=100ms / 2 chars = 50 ms/char < 200 ms/char → sub-threshold
+    const words = [...result.current.words];
+    for (let i = 0; i < words.length; i++) {
+      typeWordTimed(result, clock, words[i], 1000 + i * 500, 100, i === words.length - 1);
+    }
+
+    expect(result.current.newlyGraduated).toContain('go');
+    expect(result.current.newlyGraduated).not.toContain('up');
+  });
+
+  it('surfaces no words when no graduation threshold is crossed', () => {
+    const { result } = renderHook(() => useTestOrchestration(makeOpts()));
+
+    // typeAllWords uses no timing → elapsed=0, score=0 → no sub-threshold → no graduation
+    typeAllWords(result);
+
+    expect(result.current.newlyGraduated).toEqual([]);
   });
 });

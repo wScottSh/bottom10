@@ -441,3 +441,51 @@ describe('Sidebar graduated section', () => {
     expect(screen.queryByText('to')).toBeNull();
   });
 });
+
+describe('Sidebar graduation announcement', () => {
+  const makeGraduated = (): Partial<WordStats> => ({
+    lastScore: 100,
+    consecutiveSubThreshold: 2,
+  });
+
+  const renderSidebar = (newlyGraduated: string[]) =>
+    render(
+      <Sidebar
+        isOpen={true}
+        wordStats={{ the: makeStats(makeGraduated()), of: makeStats(makeGraduated()) }}
+        allWords={['the', 'of']}
+        toggleSidebar={() => {}}
+        onWpmChange={() => {}}
+        wpmTarget={75}
+        newlyGraduated={newlyGraduated}
+      />
+    );
+
+  it('renders one graduation-pulse per newly graduated word', () => {
+    const { container } = renderSidebar(['the']);
+    expect(container.querySelectorAll('[data-testid="graduation-pulse"]')).toHaveLength(1);
+    expect(container.querySelector('[data-testid="graduation-pulse"][data-word="the"]')).not.toBeNull();
+  });
+
+  it('renders graduation-pulses for multiple simultaneously graduated words', () => {
+    const { container } = renderSidebar(['the', 'of']);
+    expect(container.querySelectorAll('[data-testid="graduation-pulse"]')).toHaveLength(2);
+  });
+
+  it('renders no graduation-pulse when newlyGraduated is empty', () => {
+    const { container } = renderSidebar([]);
+    expect(container.querySelector('[data-testid="graduation-pulse"]')).toBeNull();
+  });
+
+  it('applies graduation-count-tick class to the graduated count on graduation', () => {
+    renderSidebar(['the']);
+    const count = screen.getByTestId('graduated-count');
+    expect(count.className).toContain('graduation-count-tick');
+  });
+
+  it('does not apply graduation-count-tick when no words graduate', () => {
+    renderSidebar([]);
+    const count = screen.getByTestId('graduated-count');
+    expect(count.className).not.toContain('graduation-count-tick');
+  });
+});

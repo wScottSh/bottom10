@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, KeyboardEvent } from 'react';
+import { useState, useEffect, KeyboardEvent } from 'react';
 import { WordStats } from '../utils/wordUtils';
 import { buildLifecycleView } from '../utils/wordSelection';
 import { GRADUATION_STREAK } from '../utils/graduation';
+import GraduationFlight from './GraduationFlight';
 
 const UNTOUCHED_PEEK = 3;
 const GRADUATED_PEEK = 3;
@@ -20,13 +21,19 @@ interface SidebarProps {
   toggleSidebar: () => void;
   onWpmChange: (wpm: number) => void;
   wpmTarget: number;
+  newlyGraduated?: string[];
 }
 
-export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, onWpmChange, wpmTarget }: SidebarProps) {
+export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, onWpmChange, wpmTarget, newlyGraduated = [] }: SidebarProps) {
   const [isEditingWpm, setIsEditingWpm] = useState(false);
   const [tempWpm, setTempWpm] = useState('');
   const [isUntouchedExpanded, setIsUntouchedExpanded] = useState(false);
   const [isGraduatedExpanded, setIsGraduatedExpanded] = useState(false);
+  const [countAnimating, setCountAnimating] = useState(false);
+
+  useEffect(() => {
+    if (newlyGraduated.length > 0) setCountAnimating(true);
+  }, [newlyGraduated]);
 
   const handleWpmSubmit = () => {
     const newWpm = parseInt(tempWpm);
@@ -164,10 +171,17 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
           </ul>
 
           {graduated.length > 0 && (
-            <div className="mt-4">
+            <div className="mt-4 relative">
+              <GraduationFlight newlyGraduated={newlyGraduated} />
               <p className="text-xs text-[#555] mb-1">↑ graduates at target pace</p>
               <div className="flex justify-between items-center mb-1">
-                <span className="text-sm text-[#888]">{graduated.length} graduated</span>
+                <span
+                  data-testid="graduated-count"
+                  className={`text-sm text-[#888]${countAnimating ? ' graduation-count-tick' : ''}`}
+                  onAnimationEnd={() => setCountAnimating(false)}
+                >
+                  {graduated.length} graduated
+                </span>
                 {graduated.length > GRADUATED_PEEK && (
                   <button
                     data-testid={isGraduatedExpanded ? 'graduated-collapse' : 'graduated-expand'}
