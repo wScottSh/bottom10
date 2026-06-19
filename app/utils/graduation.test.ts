@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isGraduated, isGraduationCandidate, updateGraduationCounter } from './graduation';
+import { isGraduated, isGraduationCandidate, updateGraduationCounter, detectGraduations } from './graduation';
 import type { WordStats } from './wordUtils';
 
 const mkStats = (lastScore: number, consecutiveSubThreshold = 0): WordStats => ({
@@ -105,5 +105,65 @@ describe('updateGraduationCounter — reset on regression', () => {
     const stats = mkStats(0, 0);
     const updated = updateGraduationCounter(stats, wpm);
     expect(updated.consecutiveSubThreshold).toBe(0);
+  });
+});
+
+describe('detectGraduations', () => {
+  const mkGraduated = (lastScore: number): WordStats => mkStats(lastScore, 2); // consecutiveSubThreshold=2
+  const mkCandidate = (lastScore: number): WordStats => mkStats(lastScore, 1);
+
+  it('returns words whose graduated status flipped false→true', () => {
+    const prev: Record<string, WordStats> = {
+      go: mkCandidate(100), // not yet graduated
+    };
+    const next: Record<string, WordStats> = {
+      go: mkGraduated(100), // now graduated
+    };
+    expect(detectGraduations(prev, next)).toEqual(['go']);
+  });
+
+  it('returns empty array when nothing graduated', () => {
+    const prev: Record<string, WordStats> = {
+      go: mkStats(100, 0),
+    };
+    const next: Record<string, WordStats> = {
+      go: mkStats(100, 1),
+    };
+    expect(detectGraduations(prev, next)).toEqual([]);
+  });
+
+  it('reports all words that simultaneously graduated', () => {
+    const prev: Record<string, WordStats> = {
+      go: mkCandidate(100),
+      up: mkCandidate(150),
+    };
+    const next: Record<string, WordStats> = {
+      go: mkGraduated(100),
+      up: mkGraduated(150),
+    };
+    const result = detectGraduations(prev, next);
+    expect(result).toContain('go');
+    expect(result).toContain('up');
+    expect(result).toHaveLength(2);
+  });
+
+  it('does not re-report a word already graduated in the prior snapshot', () => {
+    const prev: Record<string, WordStats> = {
+      go: mkGraduated(100), // already graduated before
+    };
+    const next: Record<string, WordStats> = {
+      go: mkGraduated(100), // still graduated
+    };
+    expect(detectGraduations(prev, next)).toEqual([]);
+  });
+
+  it('does not report a word that only reached candidate status', () => {
+    const prev: Record<string, WordStats> = {
+      go: mkStats(100, 0),
+    };
+    const next: Record<string, WordStats> = {
+      go: mkCandidate(100), // one pip — not yet graduated
+    };
+    expect(detectGraduations(prev, next)).toEqual([]);
   });
 });

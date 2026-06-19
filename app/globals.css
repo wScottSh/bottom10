@@ -165,3 +165,281 @@ label {
   animation: wpm-particle-arc 750ms linear forwards;
   z-index: 20;
 }
+
+@keyframes finish-prompt-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(226, 183, 20, 0);
+  }
+  50% {
+    opacity: var(--finish-pulse-opacity-min, 0.55);
+    transform: scale(var(--finish-pulse-scale, 1.08));
+    box-shadow: 0 0 8px 2px rgba(226, 183, 20, 0.35);
+  }
+}
+
+.finish-prompt {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+  pointer-events: none;
+  user-select: none;
+}
+
+.finish-prompt-keycap {
+  display: inline-block;
+  padding: 0.25em 1em;
+  background-color: var(--bg-secondary);
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  border-radius: 6px;
+  font-family: var(--font-main);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 0 rgba(226, 183, 20, 0.3);
+  animation: finish-prompt-pulse var(--finish-pulse-duration, 2000ms) var(--finish-pulse-easing, ease-in-out) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes finish-prompt-pulse {
+    0%, 100% { opacity: 1; transform: none; }
+    50%       { opacity: var(--finish-pulse-opacity-min, 0.55); transform: none; }
+  }
+}
+
+@keyframes graduation-landing-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.8); background-color: rgba(74, 222, 128, 0.3); }
+  60%  { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); background-color: rgba(74, 222, 128, 0.1); }
+  100% { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); background-color: transparent; }
+}
+
+.graduation-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  pointer-events: none;
+  animation: graduation-landing-pulse 600ms ease-out forwards;
+}
+
+@keyframes graduation-count-tick {
+  0%   { transform: scale(1); color: var(--success); }
+  40%  { transform: scale(1.15); color: var(--success); }
+  100% { transform: scale(1); color: #888; }
+}
+
+.graduation-count-tick {
+  display: inline-block;
+  animation: graduation-count-tick 400ms ease-out forwards;
+}
+
+@keyframes graduation-flight-arc {
+  /* Anticipation: clone materializes at source with a brief glow */
+  0% {
+    transform: translate(var(--dx), var(--dy)) scale(1);
+    opacity: 0;
+  }
+  10% {
+    transform: translate(var(--dx), var(--dy)) scale(1.1);
+    opacity: 1;
+    filter: drop-shadow(0 0 5px rgba(74, 222, 128, 0.9));
+  }
+  /* Liftoff and arc toward destination */
+  55% {
+    transform: translate(
+      calc(var(--dx) * 0.2),
+      calc(var(--dy) * 0.4 - 28px)
+    ) scale(0.9);
+    opacity: 1;
+    filter: none;
+  }
+  /* Landing squash-settle */
+  85% {
+    transform: translate(0px, 0px) scale(0.85);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+    opacity: 0;
+  }
+}
+
+.graduation-flight-clone {
+  position: fixed;
+  pointer-events: none;
+  user-select: none;
+  font-family: var(--font-main);
+  font-size: 0.875rem;
+  color: var(--success);
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 100;
+  animation: graduation-flight-arc 450ms ease-in-out forwards;
+}
+
+@keyframes graduation-slot-collapse {
+  from { opacity: 0.7; transform: scaleY(1); }
+  to   { opacity: 0;   transform: scaleY(0); }
+}
+
+.graduation-departing-slot {
+  position: fixed;
+  pointer-events: none;
+  transform-origin: top;
+  background-color: var(--bg-secondary);
+  overflow: hidden;
+  z-index: 99;
+  /* fill-mode: both — backwards fill holds the original slot during the stagger delay before collapse */
+  animation: graduation-slot-collapse 180ms ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .graduation-pulse {
+    animation-duration: 400ms;
+  }
+  .graduation-count-tick {
+    animation: none;
+    color: var(--success);
+  }
+  .graduation-flight-clone {
+    /* Under reduced-motion the clone is invisible and animates away instantly so it self-cleans */
+    opacity: 0;
+    animation-duration: 1ms;
+  }
+}
+
+/* Tension shake — letters jitter progressively harder as the test nears completion.
+   --shake-intensity (0..1) is set by JS on the words container and inherited by each .char.
+   --tension-shake-translate-max, --tension-shake-rotate-max, and --tension-shake-duration
+   are injected from juiceConfig.ts. */
+@keyframes tension-shake-jitter {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  20%  {
+    transform:
+      translate(
+        calc(var(--tension-shake-translate-max) * var(--shake-intensity, 0)),
+        calc(var(--tension-shake-translate-max) * -0.6 * var(--shake-intensity, 0))
+      )
+      rotate(calc(var(--tension-shake-rotate-max) * var(--shake-intensity, 0)));
+  }
+  40%  {
+    transform:
+      translate(
+        calc(var(--tension-shake-translate-max) * -0.8 * var(--shake-intensity, 0)),
+        calc(var(--tension-shake-translate-max) * 0.4 * var(--shake-intensity, 0))
+      )
+      rotate(calc(var(--tension-shake-rotate-max) * -1 * var(--shake-intensity, 0)));
+  }
+  60%  {
+    transform:
+      translate(
+        calc(var(--tension-shake-translate-max) * 0.5 * var(--shake-intensity, 0)),
+        calc(var(--tension-shake-translate-max) * 0.9 * var(--shake-intensity, 0))
+      )
+      rotate(calc(var(--tension-shake-rotate-max) * 0.7 * var(--shake-intensity, 0)));
+  }
+  80%  {
+    transform:
+      translate(
+        calc(var(--tension-shake-translate-max) * -0.4 * var(--shake-intensity, 0)),
+        calc(var(--tension-shake-translate-max) * -0.5 * var(--shake-intensity, 0))
+      )
+      rotate(calc(var(--tension-shake-rotate-max) * -0.8 * var(--shake-intensity, 0)));
+  }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+.char {
+  animation: tension-shake-jitter var(--tension-shake-duration, 160ms) linear infinite;
+}
+
+/* Per-letter phase desync — negative delays place each letter at a different
+   keyframe position on load, so the field looks organically desynced. */
+.char:nth-child(3n+1) { animation-delay: -40ms; }
+.char:nth-child(3n+2) { animation-delay: -80ms; }
+.char:nth-child(5n+1) { animation-delay: -20ms; }
+.char:nth-child(7n+2) { animation-delay: -110ms; }
+.char:nth-child(11n+3) { animation-delay: -55ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .char {
+    animation: none;
+  }
+}
+
+/* Detonation — per-letter explosion when the test finishes.
+   --det-dx, --det-dy: final radial displacement (injected by JS per letter).
+   --det-spin: rotation at end (injected by JS per letter).
+   --det-duration: animation duration (from juiceConfig, injected by JS). */
+@keyframes detonation-letter-fly {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+    animation-timing-function: ease-out;
+  }
+  35% {
+    transform:
+      translate(
+        calc(var(--det-dx) * 0.4),
+        calc(var(--det-dy) * 0.4 - 40px)
+      )
+      rotate(calc(var(--det-spin) * 0.35))
+      scale(0.85);
+    opacity: 0.85;
+    animation-timing-function: ease-in;
+  }
+  100% {
+    transform: translate(var(--det-dx), var(--det-dy)) rotate(var(--det-spin)) scale(0.4);
+    opacity: 0;
+  }
+}
+
+/* Whole-field screen-shake punch on the word container at the moment of detonation. */
+@keyframes detonation-punch {
+  0%   { transform: translate(0, 0); }
+  15%  { transform: translate(-5px, 3px); }
+  35%  { transform: translate(4px, -4px); }
+  55%  { transform: translate(-3px, 2px); }
+  75%  { transform: translate(2px, -2px); }
+  90%  { transform: translate(-1px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+
+.detonation-letter {
+  position: fixed;
+  font-family: var(--font-main);
+  font-size: 1.5rem;
+  color: var(--accent);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  animation: detonation-letter-fly var(--det-duration, 600ms) ease-out forwards;
+  z-index: 50;
+}
+
+.detonation-punch-active {
+  animation: detonation-punch var(--det-punch-duration, 120ms) ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes detonation-letter-fly {
+    0%   { opacity: 1; transform: none; }
+    100% { opacity: 0; transform: none; }
+  }
+
+  .detonation-punch-active {
+    animation: none;
+  }
+}
+
+/* Next-test fade-in — the word field fades opacity 0→1 when a new test loads.
+   Kept under prefers-reduced-motion: a plain opacity fade is non-vestibular. */
+@keyframes words-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.words-fade-in {
+  animation: words-fade-in var(--words-fade-in-duration, 180ms) ease-out forwards;
+}

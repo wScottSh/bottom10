@@ -1,12 +1,16 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
+import DetonationParticles, { DetonationHandle, DetonationLetter } from './DetonationParticles';
+import FinishPrompt from './FinishPrompt';
 import { computeWpmParticle, WordStats } from '../utils/wordUtils';
 import { generateWordSet } from '../utils/wordGeneration';
-import { CompletedWordOutcome } from '../utils/typingSession';
+import { CompletedWordOutcome, isAwaitingFinish } from '../utils/typingSession';
+import { shakeIntensity } from '../utils/shake';
+import { TENSION_SHAKE, DETONATION, FADE_IN } from '../utils/juiceConfig';
 import { resetAppData } from '../utils/persistence';
 import { usePersistedProgress } from '../hooks/usePersistedProgress';
 import { useTestOrchestration } from '../hooks/useTestOrchestration';
@@ -29,6 +33,9 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
   const wordsContainerRef = useRef<HTMLDivElement>(null);
   const wordSpanRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const wpmParticlesRef = useRef<WpmParticlesHandle>(null);
+  const detonationRef = useRef<DetonationHandle>(null);
+  const [isPunching, setIsPunching] = useState(false);
+  const [isFadingIn, setIsFadingIn] = useState(false);
 
   const {
     words,
@@ -37,6 +44,7 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
     session,
     handleKeystroke,
     startWithWords,
+    newlyGraduated,
   } = useTestOrchestration({
     globalWordStats,
     setGlobalWordStats,
@@ -49,6 +57,19 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
   useEffect(() => {
     if (words.length > 0) inputRef.current?.focus();
   }, [words]);
+
+  // Collects the viewport position of each non-space .char span in the words container.
+  const snapshotLetters = useCallback((): DetonationLetter[] => {
+    const container = wordsContainerRef.current;
+    if (!container) return [];
+    return Array.from(container.querySelectorAll('.char'))
+      .map(span => {
+        const text = span.textContent ?? '';
+        const rect = span.getBoundingClientRect();
+        return { char: text, x: rect.left, y: rect.top };
+      })
+      .filter(l => l.char.trim() !== '');
+  }, []);
 
   // Spawns a WPM particle above the word span for a completed word.
   const spawnParticle = (outcome: CompletedWordOutcome, wordIndex: number) => {
@@ -64,9 +85,26 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
     }
   };
 
+  const intensity = shakeIntensity(session.currentWordIndex, words.length);
+
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const wordIndex = session.currentWordIndex;
-    const completed = handleKeystroke(e.target.value);
+    const newValue = e.target.value;
+
+    // Snapshot and detonate when the finishing space is pressed.
+    if (isAwaitingFinish(session, words) && newValue.endsWith(' ')) {
+      const letters = snapshotLetters();
+      detonationRef.current?.detonate(letters);
+      if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        setIsPunching(true);
+        // Hold the punch class slightly past the animation so it fully completes before removal.
+        setTimeout(() => setIsPunching(false), DETONATION.punchDurationMs + 50);
+      }
+      setIsFadingIn(true);
+      setTimeout(() => setIsFadingIn(false), FADE_IN.durationMs);
+    }
+
+    const completed = handleKeystroke(newValue);
     if (completed) spawnParticle(completed, wordIndex);
   };
 
@@ -117,6 +155,7 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         onWpmChange={handleWpmChange}
         wpmTarget={wpmTarget}
+        newlyGraduated={newlyGraduated}
       />
       <div className={`flex-1 min-h-screen flex items-center transition-all duration-300
         ${isSidebarOpen ? 'ml-64' : ''}`}
@@ -153,10 +192,22 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
           )}
           <div
             ref={wordsContainerRef}
-            className="w-full px-8 relative text-2xl min-h-[120px] leading-relaxed"
+            className={`w-full px-8 relative text-2xl min-h-[120px] leading-relaxed${isPunching ? ' detonation-punch-active' : ''}`}
+            style={{
+              '--shake-intensity': intensity,
+              '--tension-shake-translate-max': `${TENSION_SHAKE.maxTranslatePx}px`,
+              '--tension-shake-rotate-max': `${TENSION_SHAKE.maxRotateDeg}deg`,
+              '--tension-shake-duration': `${TENSION_SHAKE.jitterDurationMs}ms`,
+              '--det-punch-duration': `${DETONATION.punchDurationMs}ms`,
+            } as React.CSSProperties}
           >
             <WpmParticles ref={wpmParticlesRef} />
-            {words.map((word, wordIndex) => (
+            <DetonationParticles ref={detonationRef} />
+            <div
+              data-testid="words-field"
+              className={isFadingIn ? 'words-fade-in' : ''}
+              style={{ '--words-fade-in-duration': `${FADE_IN.durationMs}ms` } as React.CSSProperties}
+            >{words.map((word, wordIndex) => (
               <span
                 key={wordIndex}
                 ref={el => { wordSpanRefs.current[wordIndex] = el; }}
@@ -189,8 +240,9 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
                   )}
                 </span>{/* Remove whitespace here */}
               </span>
-            ))}{/* Remove whitespace here */}
+            ))}{/* Remove whitespace here */}</div>
           </div>
+          <FinishPrompt visible={isAwaitingFinish(session, words)} />
           <input
             ref={inputRef}
             type="text"

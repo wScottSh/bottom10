@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, KeyboardEvent } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, KeyboardEvent } from 'react';
 import { WordStats } from '../utils/wordUtils';
 import { buildLifecycleView } from '../utils/wordSelection';
 import { GRADUATION_STREAK } from '../utils/graduation';
+import GraduationFlight, { FlightSource } from './GraduationFlight';
 
 const UNTOUCHED_PEEK = 3;
 const GRADUATED_PEEK = 3;
@@ -20,13 +21,55 @@ interface SidebarProps {
   toggleSidebar: () => void;
   onWpmChange: (wpm: number) => void;
   wpmTarget: number;
+  newlyGraduated?: string[];
 }
 
-export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, onWpmChange, wpmTarget }: SidebarProps) {
+export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, onWpmChange, wpmTarget, newlyGraduated = [] }: SidebarProps) {
   const [isEditingWpm, setIsEditingWpm] = useState(false);
   const [tempWpm, setTempWpm] = useState('');
   const [isUntouchedExpanded, setIsUntouchedExpanded] = useState(false);
   const [isGraduatedExpanded, setIsGraduatedExpanded] = useState(false);
+  const [countAnimating, setCountAnimating] = useState(false);
+  const [flightSources, setFlightSources] = useState<FlightSource[]>([]);
+
+  // Refs for FLIP animation: track current-ten row elements and graduated section
+  const rowRefsRef = useRef<Map<string, HTMLElement | null>>(new Map());
+  const prevRowRectsRef = useRef<Map<string, DOMRect>>(new Map());
+  const graduatedSectionRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (newlyGraduated.length > 0) setCountAnimating(true);
+  }, [newlyGraduated]);
+
+  // Effect 1: Compute flight sources from the previous render's row-rect snapshot.
+  // Must be declared BEFORE Effect 2 so it reads the old snapshot before it's updated.
+  useLayoutEffect(() => {
+    if (!newlyGraduated.length || !isOpen) {
+      setFlightSources(prev => prev.length > 0 ? [] : prev);
+      return;
+    }
+    const dstEl = graduatedSectionRef.current;
+    if (!dstEl) return;
+    const dstRect = dstEl.getBoundingClientRect();
+    const sources = newlyGraduated
+      .map(word => {
+        const sr = prevRowRectsRef.current.get(word);
+        if (!sr) return null;
+        return { word, srcTop: sr.top, srcLeft: sr.left, srcWidth: sr.width, srcHeight: sr.height, dstTop: dstRect.top, dstLeft: dstRect.left };
+      })
+      .filter((s): s is FlightSource => s !== null);
+    if (sources.length > 0) setFlightSources(sources);
+  }, [newlyGraduated, isOpen]);
+
+  // Effect 2: Snapshot current-ten row positions for use in the NEXT render's Effect 1.
+  // Runs after Effect 1 so Effect 1 always reads the previous render's snapshot.
+  useLayoutEffect(() => {
+    const snapshot = new Map<string, DOMRect>();
+    rowRefsRef.current.forEach((el, word) => {
+      if (el) snapshot.set(word, el.getBoundingClientRect());
+    });
+    prevRowRectsRef.current = snapshot;
+  });
 
   const handleWpmSubmit = () => {
     const newWpm = parseInt(tempWpm);
@@ -118,7 +161,16 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
               const wordColor = getStatusColor(isCandidate, '');
               const wpmColor = getStatusColor(isCandidate, 'text-[#e2b714]');
               return (
-                <li key={`${word}-${index}`}>
+                <li
+                  key={`${word}-${index}`}
+                  ref={(el) => {
+                    if (el !== null) {
+                      rowRefsRef.current.set(word, el);
+                    } else {
+                      rowRefsRef.current.delete(word);
+                    }
+                  }}
+                >
                   <div className="flex justify-between text-sm">
                     <span className={wordColor}>
                       {word}
@@ -164,10 +216,17 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
           </ul>
 
           {graduated.length > 0 && (
-            <div className="mt-4">
+            <div className="mt-4 relative" ref={graduatedSectionRef}>
+              <GraduationFlight newlyGraduated={newlyGraduated} flightSources={flightSources} />
               <p className="text-xs text-[#555] mb-1">↑ graduates at target pace</p>
               <div className="flex justify-between items-center mb-1">
-                <span className="text-sm text-[#888]">{graduated.length} graduated</span>
+                <span
+                  data-testid="graduated-count"
+                  className={`text-sm text-[#888]${countAnimating ? ' graduation-count-tick' : ''}`}
+                  onAnimationEnd={() => setCountAnimating(false)}
+                >
+                  {graduated.length} graduated
+                </span>
                 {graduated.length > GRADUATED_PEEK && (
                   <button
                     data-testid={isGraduatedExpanded ? 'graduated-collapse' : 'graduated-expand'}
