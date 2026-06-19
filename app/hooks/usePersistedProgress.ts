@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { loadAppData, CURRENT_VERSION, DEFAULT_WPM_TARGET, StorageLike, STORAGE_KEY, createInMemoryStorage } from '../utils/persistence';
+import { loadAppData, CURRENT_VERSION, DEFAULT_WPM_TARGET, StorageLike, STORAGE_KEY, getSafeStorage } from '../utils/persistence';
 import { WordStats } from '../utils/wordUtils';
 
 interface ProgressState {
@@ -12,14 +12,6 @@ export interface PersistedProgress {
   setWordStats: (stats: Record<string, WordStats>) => void;
   wpmTarget: number;
   setWpmTarget: (wpm: number) => void;
-}
-
-function resolveStorage(provided?: StorageLike): StorageLike {
-  if (provided) return provided;
-  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-    return localStorage;
-  }
-  return createInMemoryStorage();
 }
 
 export function usePersistedProgress(
@@ -45,7 +37,7 @@ export function usePersistedProgress(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const safeStorage = resolveStorage(storage);
+  const safeStorage = getSafeStorage(storage);
 
   function persist(next: ProgressState) {
     try {
