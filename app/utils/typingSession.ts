@@ -85,12 +85,19 @@ export function applyKeystroke(
   const wordStartTimestamp = state.wordStartTimestamp ?? (newValue.length === 1 ? timestamp : null);
 
   if (newChar !== expectedChar) {
-    // Wrong character: set error, latch isWordErrored when there are chars to delete.
+    // Wrong character: red the whole word (isWordErrored) until backspaced clear.
+    // On the first char we must record the rejected keystroke in currentInput so a
+    // real Backspace fires later — an empty field fires no onChange for Backspace in
+    // real browsers, which would strand the word red forever (issue #27). currentCharIndex
+    // stays put so the cursor doesn't advance over the rejected char. Mid-word, the
+    // correct prefix is already there to delete, so leave currentInput untouched.
+    const firstChar = state.currentInput.length === 0;
     return {
       state: {
         ...state,
+        currentInput: firstChar ? newValue : state.currentInput,
         hasError: true,
-        isWordErrored: state.currentInput.length > 0,
+        isWordErrored: true,
         testStarted,
         wordStartTimestamp,
       },

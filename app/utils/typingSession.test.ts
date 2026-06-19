@@ -38,18 +38,20 @@ describe('applyKeystroke — correct character entry', () => {
     expect(next.testStarted).toBe(true);
   });
 
-  it('clears hasError when correct char is typed after a wrong first-char error', () => {
+  it('clears a stray hasError when a correct char is typed (no active lock)', () => {
     const state = { ...base, hasError: true, isWordErrored: false };
     const { state: next } = applyKeystroke(state, 'h', words, 1000);
     expect(next.hasError).toBe(false);
     expect(next.currentInput).toBe('h');
   });
 
-  it('sets hasError for a wrong first character, does not latch isWordErrored', () => {
+  it('sets hasError, latches isWordErrored, and records the rejected first char', () => {
     const { state: next } = applyKeystroke(base, 'x', words, 1000);
     expect(next.hasError).toBe(true);
-    expect(next.isWordErrored).toBe(false);
-    expect(next.currentInput).toBe('');
+    expect(next.isWordErrored).toBe(true);
+    // The wrong char is stored so a real Backspace can later fire and clear it.
+    expect(next.currentInput).toBe('x');
+    // Cursor does not advance over the rejected char.
     expect(next.currentCharIndex).toBe(0);
   });
 
@@ -97,14 +99,20 @@ describe('applyKeystroke — backspace recovery', () => {
     expect(next.hasError).toBe(false);
   });
 
-  it('recovers from wrong first char without backspace (stuck-word scenario 1)', () => {
-    // Wrong first char: hasError set, currentInput stays empty, no isWordErrored latch.
+  it('recovers from wrong first char via backspace (stuck-word scenario 1)', () => {
+    // Wrong first char: error latched, rejected char stored so Backspace can fire.
     let state = applyKeystroke(base, 'x', words, 100).state;
     expect(state.hasError).toBe(true);
-    expect(state.isWordErrored).toBe(false);
+    expect(state.isWordErrored).toBe(true);
+    expect(state.currentInput).toBe('x');
+    // Locked until backspaced — typing the correct char is blocked (same ref).
+    expect(applyKeystroke(state, 'xh', words, 150).state).toBe(state);
+    // Backspace to empty clears the lock — never stuck.
+    state = applyKeystroke(state, '', words, 200).state;
     expect(state.currentInput).toBe('');
-    // Correct first char clears the error and advances input.
-    state = applyKeystroke(state, 'h', words, 200).state;
+    expect(state.isWordErrored).toBe(false);
+    // Now the correct first char registers.
+    state = applyKeystroke(state, 'h', words, 300).state;
     expect(state.currentInput).toBe('h');
     expect(state.hasError).toBe(false);
   });

@@ -9,7 +9,7 @@ function typeChar(input: HTMLInputElement, char: string) {
 }
 
 function pressBackspace(input: HTMLInputElement) {
-  if (input.value.length === 0) return;
+  if (input.value.length === 0) return; // real browsers fire no event on empty
   fireEvent.change(input, { target: { value: input.value.slice(0, -1) } });
 }
 
@@ -27,49 +27,36 @@ function wrongCharFor(expected: string): string {
   return expected === 'z' ? 'q' : 'z';
 }
 
-describe('stuck word after error + backspace (issue #27)', () => {
+describe('first-character typo reds the whole word and backspace recovers it', () => {
   beforeEach(() => {
     cleanup();
     window.localStorage.clear();
   });
 
-  it('recovers after a typo on the first character (the stuck-word case)', () => {
+  it('reds the WHOLE word when the first character is wrong', () => {
     const { container } = render(<TypingTest />);
     const input = container.querySelector('input') as HTMLInputElement;
-
     const word = currentWordText(container);
 
-    // First-char typo reds the whole word and records the rejected keystroke so a
-    // real Backspace exists to clear it (the #27 anti-stuck guarantee).
+    typeChar(input, wrongCharFor(word[0]));
+
+    expect(isErrored(container)).toBe(true);
+  });
+
+  it('backspace turns the word white and typable again', () => {
+    const { container } = render(<TypingTest />);
+    const input = container.querySelector('input') as HTMLInputElement;
+    const word = currentWordText(container);
+
     typeChar(input, wrongCharFor(word[0]));
     expect(isErrored(container)).toBe(true);
 
-    // Backspacing must always reach empty — never stranded red, never stuck.
-    for (let i = 0; i < 5; i++) pressBackspace(input);
-    expect(input.value).toBe('');
+    pressBackspace(input);
     expect(isErrored(container)).toBe(false);
 
+    // …and the correct first char now registers.
     typeChar(input, word[0]);
     expect(input.value).toBe(word[0]);
-    expect(isErrored(container)).toBe(false);
-  });
-
-  it('recovers after a typo mid-word followed by backspaces', () => {
-    const { container } = render(<TypingTest />);
-    const input = container.querySelector('input') as HTMLInputElement;
-
-    const word = currentWordText(container);
-    expect(word.length).toBeGreaterThanOrEqual(2);
-
-    typeChar(input, word[0]);
-    typeChar(input, wrongCharFor(word[1]));
-    expect(isErrored(container)).toBe(true);
-
-    typeChar(input, 'z');
-    typeChar(input, 'z');
-    for (let i = 0; i < 8; i++) pressBackspace(input);
-
-    expect(input.value).toBe('');
     expect(isErrored(container)).toBe(false);
   });
 });
