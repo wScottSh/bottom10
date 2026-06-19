@@ -255,6 +255,35 @@ describe('buildLifecycleView', () => {
     expect(yakIdx).toBeLessThan(foxIdx);
   });
 
+  it('workingSet word has movement: neutral when no prevScore', () => {
+    const wordStats: Record<string, WordStats> = {
+      the: makeStats({ lastScore: 200 }),
+    };
+    const { workingSet } = buildLifecycleView(wordStats, allWords);
+    expect(workingSet.find(r => r.word === 'the')?.movement).toBe('neutral');
+  });
+
+  it('workingSet word has movement: up when lastScore < prevScore (word got faster)', () => {
+    const wordStats: Record<string, WordStats> = {
+      the: makeStats({ lastScore: 150, prevScore: 200 }), // faster: lower score
+    };
+    const { workingSet } = buildLifecycleView(wordStats, allWords);
+    expect(workingSet.find(r => r.word === 'the')?.movement).toBe('up');
+  });
+
+  it('workingSet word has movement: down when lastScore > prevScore (word got slower)', () => {
+    const wordStats: Record<string, WordStats> = {
+      the: makeStats({ lastScore: 250, prevScore: 200 }), // slower: higher score
+    };
+    const { workingSet } = buildLifecycleView(wordStats, allWords);
+    expect(workingSet.find(r => r.word === 'the')?.movement).toBe('down');
+  });
+
+  it('workingSet untouched padding word has movement: neutral', () => {
+    const { workingSet } = buildLifecycleView({}, allWords);
+    workingSet.forEach(r => expect(r.movement).toBe('neutral'));
+  });
+
   it('untouched.count does not include working-set words or graduated words', () => {
     const wordStats: Record<string, WordStats> = {
       the: makeStats({ lastScore: 200 }),

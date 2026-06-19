@@ -294,6 +294,54 @@ describe('Sidebar collapsed state', () => {
   });
 });
 
+describe('Sidebar movement indicators', () => {
+  const renderWithStats = (wordStats: Record<string, WordStats>) =>
+    render(
+      <Sidebar
+        isOpen={true}
+        wordStats={wordStats}
+        allWords={['the']}
+        toggleSidebar={() => {}}
+        onWpmChange={() => {}}
+        wpmTarget={75}
+      />
+    );
+
+  it('shows ↑ indicator when word improved (lastScore < prevScore)', () => {
+    const { container } = renderWithStats({
+      the: makeStats({ lastScore: 150, prevScore: 200 }),
+    });
+    const indicator = container.querySelector('[data-testid="movement-up"]');
+    expect(indicator).not.toBeNull();
+    expect(indicator?.textContent).toBe('↑');
+  });
+
+  it('shows ↓ indicator when word regressed (lastScore > prevScore)', () => {
+    const { container } = renderWithStats({
+      the: makeStats({ lastScore: 250, prevScore: 200 }),
+    });
+    const indicator = container.querySelector('[data-testid="movement-down"]');
+    expect(indicator).not.toBeNull();
+    expect(indicator?.textContent).toBe('↓');
+  });
+
+  it('shows no movement indicator when no prevScore (first attempt)', () => {
+    const { container } = renderWithStats({
+      the: makeStats({ lastScore: 200 }),
+    });
+    expect(container.querySelector('[data-testid="movement-up"]')).toBeNull();
+    expect(container.querySelector('[data-testid="movement-down"]')).toBeNull();
+  });
+
+  it('shows no movement indicator for unscored (untouched) words', () => {
+    const { container } = renderWithStats({
+      the: makeStats({ lastScore: 0 }),
+    });
+    expect(container.querySelector('[data-testid="movement-up"]')).toBeNull();
+    expect(container.querySelector('[data-testid="movement-down"]')).toBeNull();
+  });
+});
+
 describe('Sidebar graduated section', () => {
   // allWords has 10 words so the working set fills with untouched when some are graduated
   const allWords = ['the', 'of', 'and', 'a', 'to', 'in', 'is', 'you', 'that', 'it'];

@@ -6,6 +6,7 @@ export interface WordStats {
   time: number;
   attempts: number;
   lastScore: number;
+  prevScore?: number;
   consecutiveSubThreshold?: number;
 }
 
@@ -98,6 +99,7 @@ export const applySessionToStats = (
       ...updatedStats[word],
       time: avgTime,
       attempts: prevAttempts + 1,
+      prevScore: prevAttempts > 0 ? prevLastScore : undefined,
       lastScore: cumulativeScore,
     };
     updatedStats[word] = updateGraduationCounter(withNewScore, wpmTarget);

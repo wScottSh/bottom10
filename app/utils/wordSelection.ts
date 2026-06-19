@@ -39,11 +39,21 @@ export const selectGraduatedWordRows = (
     }));
 };
 
+export type Movement = 'up' | 'down' | 'neutral';
+
 export interface WorkingSetWord {
   word: string;
   wpm: number | null;
   streak: number;
   isCandidate: boolean;
+  movement: Movement;
+}
+
+function computeMovement(lastScore: number, prevScore: number | undefined): Movement {
+  if (!prevScore || !lastScore) return 'neutral';
+  if (lastScore < prevScore) return 'up';
+  if (lastScore > prevScore) return 'down';
+  return 'neutral';
 }
 
 export interface LifecycleView {
@@ -75,6 +85,7 @@ export const buildLifecycleView = (
       wpm: stats && stats.lastScore > 0 ? wpmFromScore(stats.lastScore) : null,
       streak: stats?.consecutiveSubThreshold ?? 0,
       isCandidate: stats ? isGraduationCandidate(stats) : false,
+      movement: computeMovement(stats?.lastScore ?? 0, stats?.prevScore),
     };
   });
 

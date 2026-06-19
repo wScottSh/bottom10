@@ -370,6 +370,31 @@ describe('applySessionToStats', () => {
     // Must not be the raw session score (300) — prior attempts must be weighted in
     expect(result['hi'].lastScore).not.toBe(300);
   });
+
+  test('first session: prevScore is not set (neutral — no prior to compare against)', () => {
+    const stats = baseStats(['hi']);
+    const typedWords = [{ word: 'hi', time: 400, errors: 0 }];
+    const result = applySessionToStats(stats, typedWords, wpmTarget);
+    expect(result['hi'].prevScore).toBeUndefined();
+  });
+
+  test('second session: prevScore captures the old lastScore before the update', () => {
+    const stats: Record<string, WordStats> = {
+      hi: { word: 'hi', time: 400, attempts: 1, lastScore: 200, consecutiveSubThreshold: 0 },
+    };
+    const typedWords = [{ word: 'hi', time: 600, errors: 0 }];
+    const result = applySessionToStats(stats, typedWords, wpmTarget);
+    // prevScore is the old lastScore (200), not the new one (250)
+    expect(result['hi'].prevScore).toBe(200);
+    expect(result['hi'].lastScore).toBe(250);
+  });
+
+  test('prevScore is not set for words not typed in the session', () => {
+    const stats = baseStats(['the', 'and']);
+    const typedWords = [{ word: 'the', time: 300, errors: 0 }];
+    const result = applySessionToStats(stats, typedWords, wpmTarget);
+    expect(result['and'].prevScore).toBeUndefined();
+  });
 });
 
 describe('compareByScore', () => {

@@ -114,7 +114,7 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
           </div>
 
           <ul className="space-y-1">
-            {workingSet.map(({ word, wpm, streak, isCandidate }, index) => {
+            {workingSet.map(({ word, wpm, streak, isCandidate, movement }, index) => {
               const wordColor = getStatusColor(isCandidate, '');
               const wpmColor = getStatusColor(isCandidate, 'text-[#e2b714]');
               return (
@@ -124,6 +124,12 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
                       {word}
                     </span>
                     <div className="flex items-center gap-1.5">
+                      {movement === 'up' && (
+                        <span data-testid="movement-up" className="text-xs text-green-400">↑</span>
+                      )}
+                      {movement === 'down' && (
+                        <span data-testid="movement-down" className="text-xs text-red-400">↓</span>
+                      )}
                       {Array.from({ length: GRADUATION_STREAK }, (_, i) => {
                         const filled = i < streak;
                         return (
