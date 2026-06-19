@@ -14,6 +14,7 @@ import {
   computeWpmParticle,
   dedupeAdjacent,
   applySessionToStats,
+  compareByScore,
   KeystrokeEvent,
   WordStats,
 } from './wordUtils';
@@ -1000,5 +1001,22 @@ describe('applySessionToStats', () => {
     expect(result['hi'].lastScore).toBe(250);
     // Must not be the raw session score (300) — prior attempts must be weighted in
     expect(result['hi'].lastScore).not.toBe(300);
+  });
+});
+
+describe('compareByScore', () => {
+  it('places an unscored word (score=0) after a scored word', () => {
+    expect(compareByScore(0, 100)).toBeGreaterThan(0);
+    expect(compareByScore(100, 0)).toBeLessThan(0);
+  });
+
+  it('treats two unscored words as equal', () => {
+    expect(compareByScore(0, 0)).toBe(0);
+  });
+
+  it('sorts scored words ascending — lower score (faster) ranks first', () => {
+    expect(compareByScore(100, 200)).toBeLessThan(0);
+    expect(compareByScore(200, 100)).toBeGreaterThan(0);
+    expect(compareByScore(200, 200)).toBe(0);
   });
 });

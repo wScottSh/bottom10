@@ -1,7 +1,7 @@
-
 'use client';
 
-import { WordStats, isGraduated, scoreToWpm } from '../utils/wordUtils';
+import { WordStats } from '../utils/wordUtils';
+import { selectGraduatedWordRows } from '../utils/wordSelection';
 
 interface GraduatedSidebarProps {
   isOpen: boolean;
@@ -10,14 +10,7 @@ interface GraduatedSidebarProps {
 }
 
 export default function GraduatedSidebar({ isOpen, wordStats, toggleSidebar }: GraduatedSidebarProps) {
-  const sortedWords = Object.entries(wordStats)
-    .map(([word, stats]) => ({
-      word,
-      stats,
-      isGraduated: isGraduated(stats)
-    }))
-    .filter(entry => entry.isGraduated)
-    .sort((a, b) => a.stats.lastScore - b.stats.lastScore);  // Best performers first
+  const rows = selectGraduatedWordRows(wordStats);
 
   return (
     <div className={`fixed right-0 top-0 h-full bg-[#2c2c2c] transition-all duration-300 ${
@@ -29,16 +22,16 @@ export default function GraduatedSidebar({ isOpen, wordStats, toggleSidebar }: G
       >
         {isOpen ? '→' : '←'}
       </button>
-      
+
       <div className="h-full overflow-y-auto p-4">
         <h2 className="text-lg text-[#e2e2e2] mb-4">Graduated Words</h2>
         <ul className="space-y-1">
-          {sortedWords.map(({ word, stats }, index) => (
+          {rows.map(({ word, wpm }, index) => (
             <li key={`${word}-${index}`}>
               <div className="flex justify-between text-sm">
                 <span className="text-green-500">{word}</span>
                 <span className="text-green-500">
-                  {scoreToWpm(stats.lastScore)} wpm
+                  {wpm} wpm
                 </span>
               </div>
             </li>

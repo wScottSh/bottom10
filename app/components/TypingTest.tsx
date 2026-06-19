@@ -6,8 +6,11 @@ import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
 import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
 import { generateWordSet, computeWpmParticle, applySessionToStats, TypedWord, WordStats } from '../utils/wordUtils';
-import { TypingSessionState, applyKeystroke, CompletedWordOutcome } from '../utils/typingSession';
-import { loadWordStats, saveWordStats, loadWpmTarget, saveWpmTarget, resetAppData } from '../utils/persistence';
+import { CompletedWordOutcome } from '../utils/typingSession';
+import { resetAppData } from '../utils/persistence';
+import { usePersistedWpmTarget } from '../hooks/usePersistedWpmTarget';
+import { usePersistedWordStats } from '../hooks/usePersistedWordStats';
+import { useTypingSession } from '../hooks/useTypingSession';
 
 function createInitialWordStats(): Record<string, WordStats> {
   return wordList.reduce((acc, word) => ({
@@ -16,15 +19,16 @@ function createInitialWordStats(): Record<string, WordStats> {
   }), {} as Record<string, WordStats>);
 }
 
+const INITIAL_WORD_STATS = createInitialWordStats();
+
 export default function TypingTest() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [globalWordStats, setGlobalWordStats] = useState(createInitialWordStats);
-  const [wpmTarget, setWpmTarget] = useState<number>(() => loadWpmTarget());
+  const [globalWordStats, setGlobalWordStats] = usePersistedWordStats(INITIAL_WORD_STATS);
+  const [wpmTarget, setWpmTarget] = usePersistedWpmTarget();
 
   const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(true);
   const [words, setWords] = useState<string[]>([]);
-  const [currentInput, setCurrentInput] = useState('');
-  const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const { session, applyKeystroke, reset: resetSession } = useTypingSession();
   const [correctWords, setCorrectWords] = useState<number>(0);
   const [testEnded, setTestEnded] = useState<boolean>(false);
   const [typedWordsData, setTypedWordsData] = useState<TypedWord[]>([]);
@@ -33,27 +37,16 @@ export default function TypingTest() {
   const wordsContainerRef = useRef<HTMLDivElement>(null);
   const wordSpanRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const wpmParticlesRef = useRef<WpmParticlesHandle>(null);
-  const [currentCharIndex, setCurrentCharIndex] = useState(0);
-  const [hasError, setHasError] = useState(false);
-  const [isWordErrored, setIsWordErrored] = useState(false);
-  const [testStarted, setTestStarted] = useState(false);
   const [wordCount, setWordCount] = useState<number>(50);
-  const [wordStartTimestamp, setWordStartTimestamp] = useState<number | null>(null);
 
   // Load a freshly generated word set and reset all per-test state.
   const startTestWithWords = useCallback((newWords: string[]) => {
     if (newWords.length === 0) return;
     setWords(newWords);
-    setCurrentWordIndex(0);
-    setCurrentCharIndex(0);
     setCorrectWords(0);
-    setCurrentInput('');
     setTypedWordsData([]);
     setTestEnded(false);
-    setTestStarted(false);
-    setHasError(false);
-    setIsWordErrored(false);
-    setWordStartTimestamp(null);
+    resetSession();
     inputRef.current?.focus();
   }, []);
 
@@ -76,13 +69,6 @@ export default function TypingTest() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [testEnded, startNewTest]);
-
-  useEffect(() => {
-    const savedStats = loadWordStats();
-    if (Object.keys(savedStats).length > 0) {
-      setGlobalWordStats(savedStats);
-    }
-  }, []);
 
   // Consumes a completed-word outcome from the reducer: measures the word span's
   // bounding rect and spawns a WPM particle. Timing is owned by the reducer.
@@ -108,7 +94,7 @@ export default function TypingTest() {
     if (testEnded) return;
 
     const value = e.target.value;
-    const currentWord = words[currentWordIndex];
+    const currentWord = words[session.currentWordIndex];
     const timestamp = Date.now();
 
     if (!currentWord) {
@@ -116,15 +102,13 @@ export default function TypingTest() {
       return;
     }
 
-    // Snapshot of the reducer-owned state; stable for this synchronous handler
-    // since setState calls don't take effect until the next render.
-    const session: TypingSessionState = { currentInput, currentWordIndex, currentCharIndex, hasError, isWordErrored, testStarted, wordStartTimestamp };
-    const isLastWord = currentWordIndex + 1 === words.length;
+    const isLastWord = session.currentWordIndex + 1 === words.length;
+    const wordIndex = session.currentWordIndex;
 
-    const { state, completedWord } = applyKeystroke(session, value, words, timestamp);
+    const completedWord = applyKeystroke(value, words, timestamp);
 
     if (completedWord) {
-      recordCompletedWord(completedWord, currentWordIndex);
+      recordCompletedWord(completedWord, wordIndex);
       // Finishing the last word ends the test; startTestWithWords resets all state.
       if (isLastWord) {
         finishTest();
@@ -132,21 +116,12 @@ export default function TypingTest() {
       }
       setCorrectWords(correctWords + 1);
     }
-
-    setCurrentInput(state.currentInput);
-    setCurrentWordIndex(state.currentWordIndex);
-    setCurrentCharIndex(state.currentCharIndex);
-    setHasError(state.hasError);
-    setIsWordErrored(state.isWordErrored);
-    setTestStarted(state.testStarted);
-    setWordStartTimestamp(state.wordStartTimestamp);
   };
 
   const finishTest = () => {
     const updatedStats = applySessionToStats(globalWordStats, typedWordsData, wpmTarget);
     const newWords = generateWordSet(wordCount, updatedStats, wordList);
 
-    saveWordStats(updatedStats);
     setGlobalWordStats(updatedStats);
     startTestWithWords(newWords);
   };
@@ -170,16 +145,15 @@ export default function TypingTest() {
 
   const handleWpmChange = (wpm: number) => {
     setWpmTarget(wpm);
-    saveWpmTarget(wpm);
   };
 
   // Class for a word span: the current word turns red once it's errored,
   // already-typed words are marked completed, and upcoming words get nothing.
   const getWordClassName = (wordIndex: number) => {
-    if (wordIndex === currentWordIndex) {
-      return isWordErrored ? 'current error' : 'current';
+    if (wordIndex === session.currentWordIndex) {
+      return session.isWordErrored ? 'current error' : 'current';
     }
-    return wordIndex < currentWordIndex ? 'completed' : '';
+    return wordIndex < session.currentWordIndex ? 'completed' : '';
   };
 
   const handleResetProgress = () => {
@@ -211,7 +185,7 @@ export default function TypingTest() {
         <div className="flex flex-col items-center gap-4 w-full px-16" onClick={() => inputRef.current?.focus()}>
           <div className="flex items-center justify-between w-full px-8">
             <div className="text-xl">
-              {testStarted ? 'Typing...' : 'Type to start'}
+              {session.testStarted ? 'Typing...' : 'Type to start'}
             </div>
             <button onClick={toggleSettings}>
               {showSettings ? 'Hide Settings' : 'Show Settings'}
@@ -251,9 +225,9 @@ export default function TypingTest() {
               >
                 {word.split('').map((char, charIndex) => {
                   let charClass = '';
-                  if (wordIndex === currentWordIndex) {
-                    if (!isWordErrored && charIndex < currentCharIndex) charClass = 'char-correct';
-                    else if (charIndex === currentCharIndex && hasError) charClass = 'char-error';
+                  if (wordIndex === session.currentWordIndex) {
+                    if (!session.isWordErrored && charIndex < session.currentCharIndex) charClass = 'char-correct';
+                    else if (charIndex === session.currentCharIndex && session.hasError) charClass = 'char-error';
                   }
                   return (
                     <span
@@ -261,8 +235,8 @@ export default function TypingTest() {
                       className={`char relative pb-[0.3em] ${charClass}`}
                     >
                       {char}
-                      {wordIndex === currentWordIndex &&
-                      charIndex === currentCharIndex && (
+                      {wordIndex === session.currentWordIndex &&
+                      charIndex === session.currentCharIndex && (
                         <span className="absolute left-0 bottom-[0.15em] w-full h-[2px] bg-[#e2b714] transition-all duration-[50ms] ease-out" />
                       )}
                     </span>
@@ -270,8 +244,8 @@ export default function TypingTest() {
                 })}
                 <span className="char relative pb-[0.3em]">
                   {' '}
-                  {wordIndex === currentWordIndex &&
-                  word.length === currentCharIndex && (
+                  {wordIndex === session.currentWordIndex &&
+                  word.length === session.currentCharIndex && (
                     <span className="absolute left-0 bottom-[0.15em] w-full h-[2px] bg-[#e2b714] transition-all duration-[50ms] ease-out" />
                   )}
                 </span>{/* Remove whitespace here */}
@@ -281,7 +255,7 @@ export default function TypingTest() {
           <input
             ref={inputRef}
             type="text"
-            value={currentInput}
+            value={session.currentInput}
             onChange={handleInput}
             className="opacity-0 absolute"
             autoFocus

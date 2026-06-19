@@ -1,3 +1,5 @@
+import { scoreFromElapsed, wpmFromScore, graduationThreshold, meetsTarget } from './score';
+
 export interface WordStats {
   word: string;
   time: number;
@@ -6,9 +8,8 @@ export interface WordStats {
   consecutiveSubThreshold?: number;
 }
 
-export const calculateNormalizedScore = (avgTime: number, wordLength: number): number => {
-  return avgTime / wordLength;
-};
+export const calculateNormalizedScore = (avgTime: number, wordLength: number): number =>
+  scoreFromElapsed(avgTime, wordLength);
 
 // Returns the time spent typing a word: completion minus the first-keystroke
 // timestamp. Measuring from the first character (rather than from when the
@@ -59,11 +60,7 @@ export const computeWordTimingFromEvents = (events: KeystrokeEvent[]): number =>
 
 // Converts a stored lastScore (ms/char) to WPM for display. This is the inverse of
 // calculateGraduationThreshold: both treat a word as a 5-char standard word.
-export const scoreToWpm = (lastScore: number): number => {
-  const totalTimeInMilliseconds = 60000;
-  const avgCharsPerWord = 5;
-  return Math.round(totalTimeInMilliseconds / avgCharsPerWord / lastScore);
-};
+export const scoreToWpm = (lastScore: number): number => wpmFromScore(lastScore);
 
 // Pure decision function for WPM particles: computes the per-word WPM for a single
 // completion and determines whether it met the WPM target (green) or fell short (red).
@@ -75,14 +72,11 @@ export const computeWpmParticle = (
   wpmTarget: number
 ): { wpm: number; isFast: boolean } => {
   const wpm = scoreToWpm(calculateNormalizedScore(elapsed, wordLength));
-  return { wpm, isFast: wpm >= wpmTarget };
+  return { wpm, isFast: meetsTarget(elapsed, wordLength, wpmTarget) };
 };
 
-export const calculateGraduationThreshold = (wpm: number): number => {
-  const totalTimeInMilliseconds = 60000;
-  const avgCharsPerWord = 5;
-  return totalTimeInMilliseconds / (wpm * avgCharsPerWord);
-};
+export const calculateGraduationThreshold = (wpm: number): number =>
+  graduationThreshold(wpm);
 
 // Consecutive sub-threshold tests a word must accumulate before it graduates.
 const GRADUATION_STREAK = 2;
@@ -149,6 +143,17 @@ export const applySessionToStats = (
   return updatedStats;
 };
 
+// The canonical Score comparator: unscored words (score === 0) always rank after
+// scored words; among scored words, ascending (lower score = faster = better = first).
+// Both sidebar selection and working-set selection reuse this tiebreak;
+// the working set reverses the scored ordering but delegates the 0-check here.
+export const compareByScore = (scoreA: number, scoreB: number): number => {
+  if (!scoreA && scoreB) return 1;
+  if (scoreA && !scoreB) return -1;
+  if (!scoreA && !scoreB) return 0;
+  return scoreA - scoreB;
+};
+
 // Number of distinct words in a test's working set: the worst non-graduated
 // words are repeated across the test rather than drawing many unique words.
 export const WORKING_SET_SIZE = 10;
@@ -163,9 +168,9 @@ export const getTopWordsForTest = (wordStats: Record<string, WordStats>) => {
     }));
 
   const sortedCandidates = [...candidates].sort((a, b) => {
-    if (a.score === 0 && b.score !== 0) return 1;  // Unscored goes after scored
-    if (a.score !== 0 && b.score === 0) return -1;
-    return b.score - a.score;  // Higher scores (worse) first
+    // Delegate the unscored tiebreak to the canonical comparator
+    if (!a.score || !b.score) return compareByScore(a.score, b.score);
+    return b.score - a.score;  // Both scored: descending (highest score = worst first)
   });
 
   return sortedCandidates.slice(0, WORKING_SET_SIZE).map(entry => entry.word);
