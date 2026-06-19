@@ -84,7 +84,7 @@ export const buildLifecycleView = (
     workingSet,
     untouched: {
       count: remainingUntouched.length,
-      next: remainingUntouched.slice(0, 3),
+      next: remainingUntouched,
     },
     graduated: selectGraduatedWordRows(wordStats),
   };

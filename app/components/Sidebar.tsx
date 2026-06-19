@@ -5,6 +5,8 @@ import { WordStats } from '../utils/wordUtils';
 import { buildLifecycleView } from '../utils/wordSelection';
 import { GRADUATION_STREAK } from '../utils/graduation';
 
+const UNTOUCHED_PEEK = 3;
+
 const getStatusColor = (isCandidate: boolean, fallback: string): string => {
   if (isCandidate) return 'text-cyan-400';
   return fallback;
@@ -22,6 +24,7 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, onWpmChange, wpmTarget }: SidebarProps) {
   const [isEditingWpm, setIsEditingWpm] = useState(false);
   const [tempWpm, setTempWpm] = useState('');
+  const [isUntouchedExpanded, setIsUntouchedExpanded] = useState(false);
 
   const handleWpmSubmit = () => {
     const newWpm = parseInt(tempWpm);
@@ -38,7 +41,8 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
     }
   };
 
-  const { workingSet } = buildLifecycleView(wordStats, allWords);
+  const { workingSet, untouched } = buildLifecycleView(wordStats, allWords);
+  const visibleUntouched = isUntouchedExpanded ? untouched.next : untouched.next.slice(0, UNTOUCHED_PEEK);
 
   return (
     <div className={`fixed left-0 top-0 h-full bg-[#2c2c2c] transition-all duration-300 ${
@@ -52,6 +56,29 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
       </button>
 
       <div className="h-full overflow-y-auto p-4">
+        {untouched.count > 0 && (
+          <div className="mb-4">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm text-[#888]">{untouched.count} untouched</span>
+              {untouched.next.length > UNTOUCHED_PEEK && (
+                <button
+                  data-testid={isUntouchedExpanded ? 'untouched-collapse' : 'untouched-expand'}
+                  onClick={() => setIsUntouchedExpanded(!isUntouchedExpanded)}
+                  className="text-xs text-[#666] hover:text-[#888]"
+                >
+                  {isUntouchedExpanded ? '▲ less' : '▼ more'}
+                </button>
+              )}
+            </div>
+            <ul className="space-y-0.5">
+              {visibleUntouched.map(word => (
+                <li key={word} className="text-xs text-[#666]">{word}</li>
+              ))}
+            </ul>
+            <p className="text-xs text-[#555] mt-1">↓ enters when a slot frees</p>
+          </div>
+        )}
+
         {/* WPM Target UI */}
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg text-[#e2e2e2]">Current ten</h2>

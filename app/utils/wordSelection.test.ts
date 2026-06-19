@@ -225,12 +225,34 @@ describe('buildLifecycleView', () => {
     expect(workingSet.map(r => r.word)).toContain('active');
   });
 
-  it('untouched.next gives the first few untouched words not in working set', () => {
+  it('untouched.next gives all remaining untouched words not in working set (all-untouched case)', () => {
     // All allWords untouched, first WORKING_SET_SIZE go into workingSet (padding)
     const { untouched } = buildLifecycleView({}, allWords);
     // Working set takes first WORKING_SET_SIZE words (allWords order)
     const afterSet = allWords.slice(WORKING_SET_SIZE);
-    expect(untouched.next).toEqual(afterSet.slice(0, 3));
+    expect(untouched.next).toEqual(afterSet);
+  });
+
+  it('untouched.next includes more than 3 items when the reservoir is large enough', () => {
+    // With empty stats and 14 allWords, WORKING_SET_SIZE=10 leaves 4 untouched.
+    // next must carry all 4 — not capped at 3.
+    const { untouched } = buildLifecycleView({}, allWords);
+    expect(untouched.next.length).toBe(Math.max(0, allWords.length - WORKING_SET_SIZE));
+  });
+
+  it('untouched.next follows allWords frequency order', () => {
+    // allWords is frequency-ordered; next should preserve that order
+    const wordStats: Record<string, WordStats> = {
+      the: makeStats({ lastScore: 200 }),
+    };
+    const allWithExtras = ['the', 'of', 'and', 'a', 'to', 'in', 'is', 'you', 'that', 'it', 'zebra', 'yak', 'fox'];
+    const { untouched } = buildLifecycleView(wordStats, allWithExtras);
+    // untouched.next should preserve the allWords order ('zebra' before 'yak' before 'fox')
+    const zebraIdx = untouched.next.indexOf('zebra');
+    const yakIdx   = untouched.next.indexOf('yak');
+    const foxIdx   = untouched.next.indexOf('fox');
+    expect(zebraIdx).toBeLessThan(yakIdx);
+    expect(yakIdx).toBeLessThan(foxIdx);
   });
 
   it('untouched.count does not include working-set words or graduated words', () => {
