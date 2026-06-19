@@ -10,7 +10,7 @@ export const CURRENT_VERSION = 1;
 export const STORAGE_KEY = 'bottom10_data';
 const LEGACY_WORD_STATS_KEY = 'wordStats';
 const LEGACY_WPM_KEY = 'wpmTarget';
-const DEFAULT_WPM_TARGET = 40;
+export const DEFAULT_WPM_TARGET = 40;
 
 export interface StoredData {
   version: number;

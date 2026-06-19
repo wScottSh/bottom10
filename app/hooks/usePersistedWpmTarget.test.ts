@@ -13,6 +13,23 @@ describe('usePersistedWpmTarget', () => {
     expect(result.current[0]).toBe(70);
   });
 
+  // Hydration safety: the first render must equal the server render (which has no
+  // storage and so uses the default target), otherwise React throws a hydration
+  // mismatch. The stored target is applied only after mount, on a later render.
+  it('returns the default on the first render, then converges to the stored target', () => {
+    const storage = createInMemoryStorage({
+      [STORAGE_KEY]: JSON.stringify({ version: 1, wordStats: {}, wpmTarget: 70 }),
+    });
+    const renders: number[] = [];
+    const { result } = renderHook(() => {
+      const value = usePersistedWpmTarget(storage);
+      renders.push(value[0]);
+      return value;
+    });
+    expect(renders[0]).toBe(40);
+    expect(result.current[0]).toBe(70);
+  });
+
   it('falls back to the default when storage is empty', () => {
     const storage = createInMemoryStorage();
     const { result } = renderHook(() => usePersistedWpmTarget(storage));

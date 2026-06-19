@@ -22,6 +22,23 @@ describe('usePersistedWordStats', () => {
     expect(result.current[0]).toEqual(SAVED_STATS);
   });
 
+  // Hydration safety: the first render must equal the server render (which has no
+  // storage and so uses initialStats), otherwise React throws a hydration mismatch.
+  // Stored stats are applied only after mount, on a later render.
+  it('returns initial stats on the first render, then converges to stored stats', () => {
+    const storage = createInMemoryStorage({
+      [STORAGE_KEY]: JSON.stringify({ version: 1, wordStats: SAVED_STATS, wpmTarget: 40 }),
+    });
+    const renders: Record<string, WordStats>[] = [];
+    const { result } = renderHook(() => {
+      const value = usePersistedWordStats(INITIAL, storage);
+      renders.push(value[0]);
+      return value;
+    });
+    expect(renders[0]).toEqual(INITIAL);
+    expect(result.current[0]).toEqual(SAVED_STATS);
+  });
+
   it('falls back to initial stats when storage is empty', () => {
     const storage = createInMemoryStorage();
     const { result } = renderHook(() => usePersistedWordStats(INITIAL, storage));
