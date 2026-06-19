@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, KeyboardEvent } from 'react';
-import { WordStats, isGraduated, isGraduationCandidate } from '../utils/wordUtils';
-import { wpmFromScore } from '../utils/score';
+import { WordStats } from '../utils/wordUtils';
+import { selectActiveWordRows } from '../utils/wordSelection';
 
 // Color for a word's status: graduated and candidate words share their colors,
 // while ordinary words fall back to a caller-supplied default.
@@ -39,19 +39,7 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange,
     }
   };
 
-  const sortedWords = Object.entries(wordStats)
-    .map(([word, stats]) => ({
-      word,
-      stats,
-      isGraduated: isGraduated(stats)
-    }))
-    .filter(entry => !entry.isGraduated)  // Only show non-graduated words
-    .sort((a, b) => {
-      if (!a.stats.lastScore && b.stats.lastScore) return 1;
-      if (a.stats.lastScore && !b.stats.lastScore) return -1;
-      if (!a.stats.lastScore && !b.stats.lastScore) return 0;
-      return a.stats.lastScore - b.stats.lastScore;  // Ascending: lowest score (fastest) first
-    });
+  const sortedWords = selectActiveWordRows(wordStats);
 
   return (
     <div className={`fixed left-0 top-0 h-full bg-[#2c2c2c] transition-all duration-300 ${
@@ -96,19 +84,18 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange,
         </div>
 
         <ul className="space-y-1">
-          {sortedWords.map(({ word, stats, isGraduated }, index) => {
-            const isCandidate = isGraduationCandidate(stats) && !isGraduated;
-            const wordColor = getStatusColor(isGraduated, isCandidate, '');
-            const wpmColor = getStatusColor(isGraduated, isCandidate, 'text-[#e2b714]');
+          {sortedWords.map(({ word, wpm, isCandidate }, index) => {
+            const wordColor = getStatusColor(false, isCandidate, '');
+            const wpmColor = getStatusColor(false, isCandidate, 'text-[#e2b714]');
             return (
               <li key={`${word}-${index}`}>
                 <div className="flex justify-between text-sm">
                   <span className={wordColor}>
                     {word}
                   </span>
-                  {stats.lastScore > 0 && (
+                  {wpm !== null && (
                     <span className={wpmColor}>
-                      {wpmFromScore(stats.lastScore)} wpm
+                      {wpm} wpm
                     </span>
                   )}
                 </div>
