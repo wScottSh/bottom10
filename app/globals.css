@@ -290,8 +290,8 @@ label {
   background-color: var(--bg-secondary);
   overflow: hidden;
   z-index: 99;
-  animation: graduation-slot-collapse 180ms ease-in forwards;
-  animation-fill-mode: both;
+  /* fill-mode: both — backwards fill holds the original slot during the stagger delay before collapse */
+  animation: graduation-slot-collapse 180ms ease-in both;
 }
 
 @media (prefers-reduced-motion: reduce) {
