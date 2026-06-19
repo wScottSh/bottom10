@@ -58,7 +58,7 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
         {isOpen ? '←' : '→'}
       </button>
 
-      <div className="h-full overflow-y-auto p-4">
+      {isOpen && <div className="h-full overflow-y-auto p-4">
         {untouched.count > 0 && (
           <div className="mb-4">
             <div className="flex justify-between items-center mb-1">
@@ -181,7 +181,7 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
             </ul>
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

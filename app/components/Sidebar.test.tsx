@@ -262,6 +262,38 @@ describe('Sidebar untouched section', () => {
   });
 });
 
+describe('Sidebar collapsed state', () => {
+  const allWords = ['the', 'of', 'and'];
+
+  it('hides pipeline content when isOpen is false', () => {
+    render(
+      <Sidebar
+        isOpen={false}
+        wordStats={{}}
+        allWords={allWords}
+        toggleSidebar={() => {}}
+        onWpmChange={() => {}}
+        wpmTarget={75}
+      />
+    );
+    expect(screen.queryByText('Current ten')).toBeNull();
+  });
+
+  it('still renders the toggle button when closed', () => {
+    render(
+      <Sidebar
+        isOpen={false}
+        wordStats={{}}
+        allWords={allWords}
+        toggleSidebar={() => {}}
+        onWpmChange={() => {}}
+        wpmTarget={75}
+      />
+    );
+    expect(screen.getByText('→')).toBeTruthy();
+  });
+});
+
 describe('Sidebar graduated section', () => {
   // allWords has 10 words so the working set fills with untouched when some are graduated
   const allWords = ['the', 'of', 'and', 'a', 'to', 'in', 'is', 'you', 'that', 'it'];
