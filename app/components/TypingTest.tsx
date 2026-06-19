@@ -6,10 +6,11 @@ import Sidebar from './Sidebar';
 import GraduatedSidebar from './GraduatedSidebar';
 import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
 import { generateWordSet, computeWpmParticle, applySessionToStats, TypedWord, WordStats } from '../utils/wordUtils';
-import { TypingSessionState, applyKeystroke, CompletedWordOutcome } from '../utils/typingSession';
+import { CompletedWordOutcome } from '../utils/typingSession';
 import { resetAppData } from '../utils/persistence';
 import { usePersistedWpmTarget } from '../hooks/usePersistedWpmTarget';
 import { usePersistedWordStats } from '../hooks/usePersistedWordStats';
+import { useTypingSession } from '../hooks/useTypingSession';
 
 function createInitialWordStats(): Record<string, WordStats> {
   return wordList.reduce((acc, word) => ({
@@ -20,16 +21,6 @@ function createInitialWordStats(): Record<string, WordStats> {
 
 const INITIAL_WORD_STATS = createInitialWordStats();
 
-const INITIAL_SESSION: TypingSessionState = {
-  currentInput: '',
-  currentWordIndex: 0,
-  currentCharIndex: 0,
-  hasError: false,
-  isWordErrored: false,
-  testStarted: false,
-  wordStartTimestamp: null,
-};
-
 export default function TypingTest() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [globalWordStats, setGlobalWordStats] = usePersistedWordStats(INITIAL_WORD_STATS);
@@ -37,7 +28,7 @@ export default function TypingTest() {
 
   const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(true);
   const [words, setWords] = useState<string[]>([]);
-  const [session, setSession] = useState<TypingSessionState>(INITIAL_SESSION);
+  const { session, applyKeystroke, reset: resetSession } = useTypingSession();
   const [correctWords, setCorrectWords] = useState<number>(0);
   const [testEnded, setTestEnded] = useState<boolean>(false);
   const [typedWordsData, setTypedWordsData] = useState<TypedWord[]>([]);
@@ -55,7 +46,7 @@ export default function TypingTest() {
     setCorrectWords(0);
     setTypedWordsData([]);
     setTestEnded(false);
-    setSession(INITIAL_SESSION);
+    resetSession();
     inputRef.current?.focus();
   }, []);
 
@@ -112,11 +103,12 @@ export default function TypingTest() {
     }
 
     const isLastWord = session.currentWordIndex + 1 === words.length;
+    const wordIndex = session.currentWordIndex;
 
-    const { state, completedWord } = applyKeystroke(session, value, words, timestamp);
+    const completedWord = applyKeystroke(value, words, timestamp);
 
     if (completedWord) {
-      recordCompletedWord(completedWord, session.currentWordIndex);
+      recordCompletedWord(completedWord, wordIndex);
       // Finishing the last word ends the test; startTestWithWords resets all state.
       if (isLastWord) {
         finishTest();
@@ -124,8 +116,6 @@ export default function TypingTest() {
       }
       setCorrectWords(correctWords + 1);
     }
-
-    setSession(state);
   };
 
   const finishTest = () => {
