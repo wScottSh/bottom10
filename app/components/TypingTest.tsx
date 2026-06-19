@@ -7,7 +7,8 @@ import GraduatedSidebar from './GraduatedSidebar';
 import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
 import { generateWordSet, computeWpmParticle, applySessionToStats, TypedWord, WordStats } from '../utils/wordUtils';
 import { TypingSessionState, applyKeystroke, CompletedWordOutcome } from '../utils/typingSession';
-import { loadWordStats, saveWordStats, loadWpmTarget, saveWpmTarget, resetAppData } from '../utils/persistence';
+import { loadWordStats, saveWordStats, resetAppData } from '../utils/persistence';
+import { usePersistedWpmTarget } from '../hooks/usePersistedWpmTarget';
 
 function createInitialWordStats(): Record<string, WordStats> {
   return wordList.reduce((acc, word) => ({
@@ -29,7 +30,7 @@ const INITIAL_SESSION: TypingSessionState = {
 export default function TypingTest() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [globalWordStats, setGlobalWordStats] = useState(createInitialWordStats);
-  const [wpmTarget, setWpmTarget] = useState<number>(() => loadWpmTarget());
+  const [wpmTarget, setWpmTarget] = usePersistedWpmTarget();
 
   const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(true);
   const [words, setWords] = useState<string[]>([]);
@@ -159,7 +160,6 @@ export default function TypingTest() {
 
   const handleWpmChange = (wpm: number) => {
     setWpmTarget(wpm);
-    saveWpmTarget(wpm);
   };
 
   // Class for a word span: the current word turns red once it's errored,

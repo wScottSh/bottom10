@@ -7,7 +7,7 @@ export interface StorageLike {
 }
 
 export const CURRENT_VERSION = 1;
-const STORAGE_KEY = 'bottom10_data';
+export const STORAGE_KEY = 'bottom10_data';
 const LEGACY_WORD_STATS_KEY = 'wordStats';
 const LEGACY_WPM_KEY = 'wpmTarget';
 const DEFAULT_WPM_TARGET = 40;
