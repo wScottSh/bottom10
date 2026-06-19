@@ -1,4 +1,4 @@
-import { scoreFromElapsed, wpmFromScore, CHARS_PER_WORD, MS_PER_MINUTE, graduationThreshold, meetsTarget } from './score';
+import { scoreFromElapsed, wpmFromScore, graduationThreshold, meetsTarget } from './score';
 
 export interface WordStats {
   word: string;
