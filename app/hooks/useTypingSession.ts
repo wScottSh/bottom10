@@ -15,6 +15,10 @@ const INITIAL_SESSION: TypingSessionState = {
   wordStartTimestamp: null,
 };
 
+// Owns the typing-session state and drives it through the pure reducer in
+// typingSession.ts. applyKeystroke is a stable callback that returns the
+// completed-word outcome synchronously, so it reads the latest state from a ref
+// (a functional setState updater could not return a value to the caller).
 export function useTypingSession() {
   const [session, setSession] = useState<TypingSessionState>(INITIAL_SESSION);
   const sessionRef = useRef<TypingSessionState>(session);
