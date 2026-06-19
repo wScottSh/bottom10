@@ -39,9 +39,11 @@ export default function GraduationFlight({ newlyGraduated, flightSources }: Grad
     ]);
   }, [newlyGraduated]);
 
-  // Flight clones: fire when Sidebar provides layout info (one render after graduation)
+  // Flight clones: fire when Sidebar provides layout info (one render after graduation).
+  // Skipped under prefers-reduced-motion — the landing pulse (above) remains the sole feedback.
   useEffect(() => {
     if (!flightSources || !flightSources.length) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
     setClones(prev => [
       ...prev,
       ...flightSources.map((src, i) => ({
