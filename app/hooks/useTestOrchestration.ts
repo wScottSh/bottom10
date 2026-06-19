@@ -14,16 +14,17 @@ export function useTestOrchestration(opts: {
 }) {
   const [words, setWords] = useState<string[]>([]);
   const [wordCount, setWordCount] = useState(opts.wordCount ?? 50);
-  const [typedWordsData, setTypedWordsData] = useState<TypedWord[]>([]);
   const { session, applyKeystroke, reset: resetSession } = useTypingSession({ clock: opts.clock });
+
+  // Per-test accumulator of completed words; never rendered, so a ref (not state)
+  // avoids a redundant re-render on every keystroke.
+  const typedWordsRef = useRef<TypedWord[]>([]);
 
   // Refs so stable callbacks can always read the latest values without re-creating.
   const sessionRef = useRef(session);
   sessionRef.current = session;
   const wordsRef = useRef(words);
   wordsRef.current = words;
-  const typedWordsDataRef = useRef(typedWordsData);
-  typedWordsDataRef.current = typedWordsData;
   const wordCountRef = useRef(wordCount);
   wordCountRef.current = wordCount;
   const globalWordStatsRef = useRef(opts.globalWordStats);
@@ -38,7 +39,7 @@ export function useTestOrchestration(opts: {
   const startWithWords = useCallback((newWords: string[]) => {
     if (newWords.length === 0) return;
     setWords(newWords);
-    setTypedWordsData([]);
+    typedWordsRef.current = [];
     resetSession();
   }, [resetSession]);
 
@@ -75,8 +76,8 @@ export function useTestOrchestration(opts: {
     if (!completed) return null;
 
     const newTypedWord: TypedWord = { word: completed.word, time: completed.elapsed, errors: 0 };
-    const updatedTypedWords = [...typedWordsDataRef.current, newTypedWord];
-    setTypedWordsData(updatedTypedWords);
+    const updatedTypedWords = [...typedWordsRef.current, newTypedWord];
+    typedWordsRef.current = updatedTypedWords;
 
     if (isLastWord) {
       const updatedStats = applySessionToStats(
@@ -98,7 +99,6 @@ export function useTestOrchestration(opts: {
     setWordCount,
     session,
     handleKeystroke,
-    startNewTest,
     startWithWords,
   };
 }
