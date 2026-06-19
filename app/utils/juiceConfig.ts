@@ -20,3 +20,16 @@ export const FINISH_PROMPT = {
   // Opacity at the trough of the pulse (both full-motion and reduced-motion).
   pulseOpacityMin: 0.55,
 } as const;
+
+export const DETONATION = {
+  // Base outward fling distance per letter (pixels).
+  velocityPx: 700,
+  // Random ± spread added to the base velocity (pixels).
+  velocitySpreadPx: 250,
+  // Max rotation per letter at end of animation (degrees). Each letter gets ±maxSpinDeg.
+  maxSpinDeg: 720,
+  // Duration of the explosion animation (milliseconds).
+  durationMs: 600,
+  // Duration of the whole-field screen-shake punch on the word container (milliseconds).
+  punchDurationMs: 120,
+} as const;

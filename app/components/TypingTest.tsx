@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
 import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
+import DetonationParticles, { DetonationHandle, DetonationLetter } from './DetonationParticles';
 import FinishPrompt from './FinishPrompt';
 import { computeWpmParticle, WordStats } from '../utils/wordUtils';
 import { generateWordSet } from '../utils/wordGeneration';
 import { CompletedWordOutcome, isAwaitingFinish } from '../utils/typingSession';
 import { shakeIntensity } from '../utils/shake';
-import { TENSION_SHAKE } from '../utils/juiceConfig';
+import { TENSION_SHAKE, DETONATION } from '../utils/juiceConfig';
 import { resetAppData } from '../utils/persistence';
 import { usePersistedProgress } from '../hooks/usePersistedProgress';
 import { useTestOrchestration } from '../hooks/useTestOrchestration';
@@ -32,6 +33,8 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
   const wordsContainerRef = useRef<HTMLDivElement>(null);
   const wordSpanRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const wpmParticlesRef = useRef<WpmParticlesHandle>(null);
+  const detonationRef = useRef<DetonationHandle>(null);
+  const [isPunching, setIsPunching] = useState(false);
 
   const {
     words,
@@ -54,6 +57,19 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
     if (words.length > 0) inputRef.current?.focus();
   }, [words]);
 
+  // Collects the viewport position of each non-space .char span in the words container.
+  const snapshotLetters = useCallback((): DetonationLetter[] => {
+    const container = wordsContainerRef.current;
+    if (!container) return [];
+    return Array.from(container.querySelectorAll('.char'))
+      .map(span => {
+        const text = span.textContent ?? '';
+        const rect = span.getBoundingClientRect();
+        return { char: text, x: rect.left, y: rect.top };
+      })
+      .filter(l => l.char.trim() !== '');
+  }, []);
+
   // Spawns a WPM particle above the word span for a completed word.
   const spawnParticle = (outcome: CompletedWordOutcome, wordIndex: number) => {
     const wordSpan = wordSpanRefs.current[wordIndex];
@@ -72,7 +88,19 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const wordIndex = session.currentWordIndex;
-    const completed = handleKeystroke(e.target.value);
+    const newValue = e.target.value;
+
+    // Snapshot and detonate when the finishing space is pressed.
+    if (isAwaitingFinish(session, words) && newValue.endsWith(' ')) {
+      const letters = snapshotLetters();
+      detonationRef.current?.detonate(letters);
+      if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        setIsPunching(true);
+        setTimeout(() => setIsPunching(false), DETONATION.punchDurationMs + 50);
+      }
+    }
+
+    const completed = handleKeystroke(newValue);
     if (completed) spawnParticle(completed, wordIndex);
   };
 
@@ -160,15 +188,17 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
           )}
           <div
             ref={wordsContainerRef}
-            className="w-full px-8 relative text-2xl min-h-[120px] leading-relaxed"
+            className={`w-full px-8 relative text-2xl min-h-[120px] leading-relaxed${isPunching ? ' detonation-punch-active' : ''}`}
             style={{
               '--shake-intensity': intensity,
               '--tension-shake-translate-max': `${TENSION_SHAKE.maxTranslatePx}px`,
               '--tension-shake-rotate-max': `${TENSION_SHAKE.maxRotateDeg}deg`,
               '--tension-shake-duration': `${TENSION_SHAKE.jitterDurationMs}ms`,
+              '--det-punch-duration': `${DETONATION.punchDurationMs}ms`,
             } as React.CSSProperties}
           >
             <WpmParticles ref={wpmParticlesRef} />
+            <DetonationParticles ref={detonationRef} />
             {words.map((word, wordIndex) => (
               <span
                 key={wordIndex}
