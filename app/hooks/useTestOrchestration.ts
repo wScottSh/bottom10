@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { generateWordSet, applySessionToStats, TypedWord, WordStats } from '../utils/wordUtils';
+import { applySessionToStats, TypedWord, WordStats } from '../utils/wordUtils';
+import { generateWordSet } from '../utils/wordGeneration';
 import { CompletedWordOutcome } from '../utils/typingSession';
 import { ClockLike } from '../utils/clock';
 import { useTypingSession } from './useTypingSession';

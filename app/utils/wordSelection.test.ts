@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { selectActiveWordRows, selectGraduatedWordRows, buildLifecycleView } from './wordSelection';
-import { WordStats, getTopWordsForTest, WORKING_SET_SIZE } from './wordUtils';
+import { WordStats } from './wordUtils';
+import { getTopWordsForTest, WORKING_SET_SIZE } from './wordGeneration';
 
 const makeStats = (overrides: Partial<WordStats> = {}): WordStats => ({
   word: '',

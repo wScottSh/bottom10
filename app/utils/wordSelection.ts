@@ -1,4 +1,5 @@
-import { WordStats, compareByScore, getTopWordsForTest, WORKING_SET_SIZE } from './wordUtils';
+import { WordStats, compareByScore } from './wordUtils';
+import { getTopWordsForTest, WORKING_SET_SIZE } from './wordGeneration';
 import { isGraduated, isGraduationCandidate } from './graduation';
 import { wpmFromScore } from './score';
 
