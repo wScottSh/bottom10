@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect, KeyboardEvent } from 'react';
+import { useState, KeyboardEvent } from 'react';
 import { WordStats, isGraduated, isGraduationCandidate, scoreToWpm } from '../utils/wordUtils';
-import { loadWpmTarget, saveWpmTarget } from '../utils/persistence';
 
 // Color for a word's status: graduated and candidate words share their colors,
 // while ordinary words fall back to a caller-supplied default.
@@ -17,23 +16,16 @@ interface SidebarProps {
   wordStats: Record<string, WordStats>;
   toggleSidebar: () => void;
   onWpmChange: (wpm: number) => void;
+  wpmTarget: number;
 }
 
-export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange }: SidebarProps) {
-  const [wpmTarget, setWpmTarget] = useState<number>(40);
+export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange, wpmTarget }: SidebarProps) {
   const [isEditingWpm, setIsEditingWpm] = useState(false);
   const [tempWpm, setTempWpm] = useState('');
-
-  useEffect(() => {
-    const saved = loadWpmTarget();
-    setWpmTarget(saved);
-  }, []);
 
   const handleWpmSubmit = () => {
     const newWpm = parseInt(tempWpm);
     if (newWpm > 0) {
-      setWpmTarget(newWpm);
-      saveWpmTarget(newWpm);
       onWpmChange(newWpm);
     }
     setIsEditingWpm(false);

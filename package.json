@@ -10,7 +10,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit || echo 'Pre-existing type issues in components (not introduced by persistence service for issue 2)'",
     "test": "npm run typecheck && vitest run",
-    "sandcastle": "npx tsx .sandcastle/main.ts"
+    "sandcastle": "npx tsx .sandcastle/main.ts",
+    "sandcastle:improve": "npx tsx .sandcastle/main.ts --improve"
   },
   "dependencies": {
     "next": "15.0.4",

@@ -27,6 +27,15 @@ export interface KeystrokeEvent {
   timestamp: number;
 }
 
+// One word as completed during a test: the word, its elapsed typing time, and
+// whether it was typed with an error. Accumulated across a session, then folded
+// into the durable stats by applySessionToStats.
+export interface TypedWord {
+  word: string;
+  time: number;
+  errors: number;
+}
+
 // Pure helper: given a scripted sequence of timestamped keystroke events for a word,
 // returns the word's elapsed typing time from the first character to the completing
 // space. The inter-word switch gap is excluded by construction — the clock starts on
@@ -103,6 +112,43 @@ export const updateGraduationCounter = (stats: WordStats, wpm: number): WordStat
   };
 };
 
+// Applies a finished session's typed words to the durable stats map.
+// Groups repeated words and averages their times; bumps attempts once per word group;
+// runs the graduation counter. Does not mutate the input stats object.
+export const applySessionToStats = (
+  stats: Record<string, WordStats>,
+  typedWords: TypedWord[],
+  wpmTarget: number
+): Record<string, WordStats> => {
+  const updatedStats = { ...stats };
+
+  const wordGroups = typedWords.reduce((acc, { word, time }) => {
+    if (!acc[word]) acc[word] = { totalTime: 0, count: 0 };
+    acc[word].totalTime += time;
+    acc[word].count += 1;
+    return acc;
+  }, {} as Record<string, { totalTime: number; count: number }>);
+
+  Object.entries(wordGroups).forEach(([word, { totalTime, count }]) => {
+    const avgTime = totalTime / count;
+    const sessionScore = calculateNormalizedScore(avgTime, word.length);
+    const prevAttempts = updatedStats[word]?.attempts || 0;
+    const prevLastScore = updatedStats[word]?.lastScore || 0;
+    // Running mean of per-session scores. With prevAttempts === 0 this reduces to
+    // sessionScore, so the first session needs no special case.
+    const cumulativeScore = (prevLastScore * prevAttempts + sessionScore) / (prevAttempts + 1);
+    const withNewScore: WordStats = {
+      ...updatedStats[word],
+      time: avgTime,
+      attempts: prevAttempts + 1,
+      lastScore: cumulativeScore,
+    };
+    updatedStats[word] = updateGraduationCounter(withNewScore, wpmTarget);
+  });
+
+  return updatedStats;
+};
+
 // Number of distinct words in a test's working set: the worst non-graduated
 // words are repeated across the test rather than drawing many unique words.
 export const WORKING_SET_SIZE = 10;
@@ -123,34 +169,6 @@ export const getTopWordsForTest = (wordStats: Record<string, WordStats>) => {
   });
 
   return sortedCandidates.slice(0, WORKING_SET_SIZE).map(entry => entry.word);
-};
-
-// Returns the working set: worst non-graduated words up to maxSize, with remaining
-// slots filled from untouched words (never scored) in English-frequency order.
-// A scored, non-graduated word stays sticky until it graduates — it never returns
-// to the untouched pool.
-export const selectWorkingSet = (
-  wordStats: Record<string, WordStats>,
-  allWords: string[],
-  maxSize: number = WORKING_SET_SIZE
-): string[] => {
-  const scored = Object.entries(wordStats).filter(([, stats]) => stats.lastScore > 0);
-
-  // Active: scored words not yet graduated, worst (highest score) first
-  const active = scored
-    .filter(([, stats]) => !isGraduated(stats))
-    .sort((a, b) => b[1].lastScore - a[1].lastScore)
-    .map(([word]) => word)
-    .slice(0, maxSize);
-
-  if (active.length >= maxSize) return active;
-
-  // Fill remaining slots from untouched words (never scored) in frequency order
-  const scoredWords = new Set(scored.map(([word]) => word));
-  const slotsLeft = maxSize - active.length;
-  const untouched = allWords.filter(w => !scoredWords.has(w)).slice(0, slotsLeft);
-
-  return [...active, ...untouched];
 };
 
 export const shuffleArray = (array: string[]): string[] => {
@@ -288,29 +306,6 @@ const expandDistribution = (dist: Record<string, number>): string[] => {
   return repeatedWords;
 };
 
-export const generateFrequencyDistribution = (wordCount: number, bottomWords: string[]): Record<string, number> => {
-  const worstWordCount = Math.max(Math.floor(wordCount * 0.25), 1);
-  const remainingCount = wordCount - worstWordCount;
-
-  const frequencies: Record<string, number> = {};
-  let remainingSlots = remainingCount;
-
-  bottomWords.forEach((word, index) => {
-    if (index === 0) {
-      frequencies[word] = worstWordCount;
-    } else if (index === bottomWords.length - 1) {
-      frequencies[word] = 2;
-    } else {
-      const portion = Math.floor((remainingSlots - 2) * (bottomWords.length - index) /
-        (bottomWords.length * (bottomWords.length - 1) / 2));
-      frequencies[word] = Math.max(portion, 2);
-      remainingSlots -= portion;
-    }
-  });
-
-  return frequencies;
-};
-
 // All words that have not graduated yet, including those never scored.
 const filterNonGraduated = (
   allWords: string[],
@@ -327,29 +322,6 @@ const filterUnscored = (
   wordStats: Record<string, WordStats>
 ): string[] =>
   allWords.filter(word => !wordStats[word]?.lastScore);
-
-export const selectWordsForTest = (
-  wordStats: Record<string, WordStats>,
-  count: number,
-  allWords: string[]
-): string[] => {
-  const selectedWords = getTopWordsForTest(wordStats);
-
-  if (selectedWords.length === 0) {
-    return filterUnscored(allWords, wordStats);
-  }
-
-  const hasScoredWord = selectedWords.some(word => (wordStats[word]?.lastScore ?? 0) > 0);
-  if (!hasScoredWord) {
-    return filterNonGraduated(allWords, wordStats);
-  }
-
-  const repeatedWords = expandDistribution(buildWordDistribution(selectedWords, wordStats, count));
-
-  return repeatedWords.length === 0
-    ? filterNonGraduated(allWords, wordStats)
-    : repeatedWords;
-};
 
 // Builds the shuffled, count-sized word set for the next test. Pure: callers pass
 // freshly-computed stats so the next set deterministically reflects the just-finished
