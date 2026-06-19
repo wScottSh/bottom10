@@ -1,4 +1,3 @@
-
 'use client';
 
 import { WordStats } from '../utils/wordUtils';
