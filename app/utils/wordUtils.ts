@@ -1,6 +1,5 @@
 import { scoreFromElapsed, wpmFromScore, graduationThreshold, meetsTarget } from './score';
-import { isGraduated, isGraduationCandidate, updateGraduationCounter } from './graduation';
-export { isGraduated, isGraduationCandidate, updateGraduationCounter } from './graduation';
+import { isGraduated, updateGraduationCounter } from './graduation';
 
 export interface WordStats {
   word: string;

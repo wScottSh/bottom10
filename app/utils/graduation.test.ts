@@ -11,6 +11,10 @@ const mkStats = (lastScore: number, consecutiveSubThreshold = 0): WordStats => (
 });
 
 describe('isGraduated', () => {
+  it('returns false when the counter is 0 (never sub-threshold)', () => {
+    expect(isGraduated(mkStats(100, 0))).toBe(false);
+  });
+
   it('returns false before reaching the streak threshold (counter=1)', () => {
     expect(isGraduated(mkStats(100, 1))).toBe(false);
   });
@@ -51,16 +55,24 @@ describe('isGraduationCandidate', () => {
 describe('updateGraduationCounter — graduate after streak', () => {
   const wpm = 60; // threshold = 200 ms/char
 
-  it('increments counter when lastScore is under threshold', () => {
+  it('increments the counter but does not graduate on a single sub-threshold result', () => {
     const stats = mkStats(150, 0); // 150 < 200 — sub-threshold
     const updated = updateGraduationCounter(stats, wpm);
     expect(updated.consecutiveSubThreshold).toBe(1);
+    expect(isGraduated(updated)).toBe(false);
   });
 
   it('graduates a word after two consecutive sub-threshold results', () => {
     const stats = mkStats(150, 1); // already one sub-threshold — one more graduates
     const updated = updateGraduationCounter(stats, wpm);
+    expect(updated.consecutiveSubThreshold).toBe(2);
     expect(isGraduated(updated)).toBe(true);
+  });
+
+  it('treats a missing counter as 0, then increments it (legacy record migration)', () => {
+    const stats = { word: 'hi', time: 100, attempts: 1, lastScore: 150 } as WordStats;
+    const updated = updateGraduationCounter(stats, wpm);
+    expect(updated.consecutiveSubThreshold).toBe(1);
   });
 
   it('preserves other stats fields unchanged', () => {
@@ -69,6 +81,7 @@ describe('updateGraduationCounter — graduate after streak', () => {
     expect(updated.lastScore).toBe(stats.lastScore);
     expect(updated.attempts).toBe(stats.attempts);
     expect(updated.word).toBe(stats.word);
+    expect(updated.time).toBe(stats.time);
   });
 });
 
