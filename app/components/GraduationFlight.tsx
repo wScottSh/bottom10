@@ -15,13 +15,8 @@ interface Pulse {
   word: string;
 }
 
-interface FlightClone {
+interface FlightClone extends FlightSource {
   id: number;
-  word: string;
-  srcTop: number;
-  srcLeft: number;
-  dstTop: number;
-  dstLeft: number;
   delay: number;
 }
 
@@ -50,12 +45,8 @@ export default function GraduationFlight({ newlyGraduated, flightSources }: Grad
     setClones(prev => [
       ...prev,
       ...flightSources.map((src, i) => ({
+        ...src,
         id: nextId.current++,
-        word: src.word,
-        srcTop: src.srcTop,
-        srcLeft: src.srcLeft,
-        dstTop: src.dstTop,
-        dstLeft: src.dstLeft,
         delay: i * 100,
       })),
     ]);
