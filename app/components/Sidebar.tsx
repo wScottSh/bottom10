@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, KeyboardEvent } from 'react';
-import { WordStats, isGraduated, isGraduationCandidate, scoreToWpm } from '../utils/wordUtils';
+import { WordStats, isGraduated, isGraduationCandidate } from '../utils/wordUtils';
+import { wpmFromScore } from '../utils/score';
 
 // Color for a word's status: graduated and candidate words share their colors,
 // while ordinary words fall back to a caller-supplied default.
@@ -107,7 +108,7 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange,
                   </span>
                   {stats.lastScore > 0 && (
                     <span className={wpmColor}>
-                      {scoreToWpm(stats.lastScore)} wpm
+                      {wpmFromScore(stats.lastScore)} wpm
                     </span>
                   )}
                 </div>

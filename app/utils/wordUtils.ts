@@ -1,3 +1,5 @@
+import { scoreFromElapsed, wpmFromScore, CHARS_PER_WORD, MS_PER_MINUTE } from './score';
+
 export interface WordStats {
   word: string;
   time: number;
@@ -6,9 +8,8 @@ export interface WordStats {
   consecutiveSubThreshold?: number;
 }
 
-export const calculateNormalizedScore = (avgTime: number, wordLength: number): number => {
-  return avgTime / wordLength;
-};
+export const calculateNormalizedScore = (avgTime: number, wordLength: number): number =>
+  scoreFromElapsed(avgTime, wordLength);
 
 // Returns the time spent typing a word: completion minus the first-keystroke
 // timestamp. Measuring from the first character (rather than from when the
@@ -59,11 +60,7 @@ export const computeWordTimingFromEvents = (events: KeystrokeEvent[]): number =>
 
 // Converts a stored lastScore (ms/char) to WPM for display. This is the inverse of
 // calculateGraduationThreshold: both treat a word as a 5-char standard word.
-export const scoreToWpm = (lastScore: number): number => {
-  const totalTimeInMilliseconds = 60000;
-  const avgCharsPerWord = 5;
-  return Math.round(totalTimeInMilliseconds / avgCharsPerWord / lastScore);
-};
+export const scoreToWpm = (lastScore: number): number => wpmFromScore(lastScore);
 
 // Pure decision function for WPM particles: computes the per-word WPM for a single
 // completion and determines whether it met the WPM target (green) or fell short (red).
@@ -78,11 +75,8 @@ export const computeWpmParticle = (
   return { wpm, isFast: wpm >= wpmTarget };
 };
 
-export const calculateGraduationThreshold = (wpm: number): number => {
-  const totalTimeInMilliseconds = 60000;
-  const avgCharsPerWord = 5;
-  return totalTimeInMilliseconds / (wpm * avgCharsPerWord);
-};
+export const calculateGraduationThreshold = (wpm: number): number =>
+  MS_PER_MINUTE / (wpm * CHARS_PER_WORD);
 
 // Consecutive sub-threshold tests a word must accumulate before it graduates.
 const GRADUATION_STREAK = 2;

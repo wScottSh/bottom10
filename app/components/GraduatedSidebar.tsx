@@ -1,7 +1,8 @@
 
 'use client';
 
-import { WordStats, isGraduated, scoreToWpm } from '../utils/wordUtils';
+import { WordStats, isGraduated } from '../utils/wordUtils';
+import { wpmFromScore } from '../utils/score';
 
 interface GraduatedSidebarProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ export default function GraduatedSidebar({ isOpen, wordStats, toggleSidebar }: G
               <div className="flex justify-between text-sm">
                 <span className="text-green-500">{word}</span>
                 <span className="text-green-500">
-                  {scoreToWpm(stats.lastScore)} wpm
+                  {wpmFromScore(stats.lastScore)} wpm
                 </span>
               </div>
             </li>
