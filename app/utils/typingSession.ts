@@ -12,9 +12,10 @@ export interface TypingSessionState {
   wordStartTimestamp: number | null;
 }
 
-// Emitted when a word is completed (space after correct word, or last-word direct
-// completion). Carries the data TypingTest needs to record the attempt and spawn
-// the WPM particle without any DOM measurement.
+// Emitted when a word is completed (space pressed after a correctly typed word,
+// including the last word, which now also requires a space — see isAwaitingFinish).
+// Carries the data TypingTest needs to record the attempt and spawn the WPM
+// particle without any DOM measurement.
 export interface CompletedWordOutcome {
   word: string;
   elapsed: number;
