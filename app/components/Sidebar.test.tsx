@@ -78,6 +78,49 @@ describe('Sidebar current ten', () => {
   });
 });
 
+describe('Sidebar graduation progress', () => {
+  const renderWithWord = (statsOverrides: Partial<WordStats>, wpmTarget = 75) =>
+    render(
+      <Sidebar
+        isOpen={true}
+        wordStats={{ the: makeStats(statsOverrides) }}
+        allWords={['the']}
+        toggleSidebar={() => {}}
+        onWpmChange={() => {}}
+        wpmTarget={wpmTarget}
+      />
+    );
+
+  it('shows one filled pip for consecutiveSubThreshold=1', () => {
+    const { container } = renderWithWord({ lastScore: 150, consecutiveSubThreshold: 1 });
+    expect(container.querySelectorAll('[data-testid="pip-filled"]').length).toBe(1);
+    expect(container.querySelectorAll('[data-testid="pip-empty"]').length).toBe(1);
+  });
+
+  it('shows no filled pips for consecutiveSubThreshold=0', () => {
+    const { container } = renderWithWord({ lastScore: 150, consecutiveSubThreshold: 0 });
+    expect(container.querySelectorAll('[data-testid="pip-filled"]').length).toBe(0);
+    expect(container.querySelectorAll('[data-testid="pip-empty"]').length).toBe(2);
+  });
+
+  it('applies distinct candidate highlight when one test from graduating', () => {
+    // consecutiveSubThreshold === GRADUATION_STREAK - 1 → isCandidate=true
+    const { container } = renderWithWord({ lastScore: 150, consecutiveSubThreshold: 1 });
+    const wordSpan = container.querySelector('li span:first-child');
+    expect(wordSpan?.className).toContain('cyan');
+  });
+
+  it('does not render wpm bar for unscored word (lastScore=0)', () => {
+    const { container } = renderWithWord({ lastScore: 0 });
+    expect(container.querySelector('[data-testid="wpm-bar"]')).toBeNull();
+  });
+
+  it('renders wpm bar for scored word', () => {
+    const { container } = renderWithWord({ lastScore: 150 });
+    expect(container.querySelector('[data-testid="wpm-bar"]')).not.toBeNull();
+  });
+});
+
 describe('Sidebar wpmTarget prop', () => {
   const allWords = ['the', 'of', 'and'];
 
