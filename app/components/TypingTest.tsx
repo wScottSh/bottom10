@@ -96,6 +96,7 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
       detonationRef.current?.detonate(letters);
       if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
         setIsPunching(true);
+        // Hold the punch class slightly past the animation so it fully completes before removal.
         setTimeout(() => setIsPunching(false), DETONATION.punchDurationMs + 50);
       }
     }
