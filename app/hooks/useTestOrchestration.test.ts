@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTestOrchestration } from './useTestOrchestration';
 import { createControllableClock } from '../utils/clock';
+import type { WordStats } from '../utils/wordUtils';
 
 // Two short words so tests can type through a full set quickly
 const TWO_WORDS = ['go', 'up'];
@@ -98,5 +99,54 @@ describe('useTestOrchestration — Enter-to-restart', () => {
 
     // Still typing — session unchanged
     expect(result.current.session.testStarted).toBe(true);
+  });
+});
+
+describe('useTestOrchestration — stats folding on session completion', () => {
+  it('folds typed-word timing into stats with correct attempts and scores', () => {
+    const clock = createControllableClock(1000);
+    const setStats = vi.fn();
+
+    const { result } = renderHook(() =>
+      useTestOrchestration(makeOpts({ setGlobalWordStats: setStats, clock }))
+    );
+
+    const words = [...result.current.words];
+    expect(words).toHaveLength(2);
+    const [first, second] = words;
+
+    // Type first word starting at t=1000, finishing at t=1500 (500ms elapsed).
+    act(() => { result.current.handleKeystroke(first[0]); });
+    clock.setNow(1500);
+    for (let i = 1; i < first.length; i++) {
+      act(() => { result.current.handleKeystroke(first.slice(0, i + 1)); });
+    }
+    act(() => { result.current.handleKeystroke(first + ' '); });
+
+    // Type second (last) word starting at t=2000, finishing at t=3000 (1000ms elapsed).
+    clock.setNow(2000);
+    act(() => { result.current.handleKeystroke(second[0]); });
+    clock.setNow(3000);
+    for (let i = 1; i < second.length; i++) {
+      act(() => { result.current.handleKeystroke(second.slice(0, i + 1)); });
+    }
+    // Last word completes on its final character — no trailing space needed.
+
+    expect(setStats).toHaveBeenCalledOnce();
+    const updatedStats: Record<string, WordStats> = setStats.mock.calls[0][0];
+
+    // Both words must have one recorded attempt and a non-zero score.
+    expect(updatedStats[first].attempts).toBe(1);
+    expect(updatedStats[first].lastScore).toBeGreaterThan(0);
+    expect(updatedStats[second].attempts).toBe(1);
+    expect(updatedStats[second].lastScore).toBeGreaterThan(0);
+
+    // First word (500ms / 2 chars = 250 ms/char) is faster than second
+    // (1000ms / 2 chars = 500 ms/char), so its stored score must be lower.
+    expect(updatedStats[first].lastScore).toBeLessThan(updatedStats[second].lastScore);
+
+    // The next set must have been generated from the fresh stats (session restarted).
+    expect(result.current.session.testStarted).toBe(false);
+    expect(result.current.words).toHaveLength(2);
   });
 });
