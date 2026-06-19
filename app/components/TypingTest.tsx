@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import wordList from '../data/wordList';
 import Sidebar from './Sidebar';
-import GraduatedSidebar from './GraduatedSidebar';
 import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
 import { computeWpmParticle, WordStats } from '../utils/wordUtils';
 import { generateWordSet } from '../utils/wordGeneration';
@@ -25,7 +24,6 @@ const INITIAL_WORD_STATS = createInitialWordStats();
 export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike } = {}) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { wordStats: globalWordStats, setWordStats: setGlobalWordStats, wpmTarget, setWpmTarget } = usePersistedProgress(INITIAL_WORD_STATS);
-  const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(true);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const wordsContainerRef = useRef<HTMLDivElement>(null);
@@ -120,14 +118,8 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
         onWpmChange={handleWpmChange}
         wpmTarget={wpmTarget}
       />
-      <GraduatedSidebar
-        isOpen={isGraduatedSidebarOpen}
-        wordStats={globalWordStats}
-        toggleSidebar={() => setIsGraduatedSidebarOpen(!isGraduatedSidebarOpen)}
-      />
       <div className={`flex-1 min-h-screen flex items-center transition-all duration-300
-        ${isSidebarOpen ? 'ml-64' : ''}
-        ${isGraduatedSidebarOpen ? 'mr-64' : ''}`}
+        ${isSidebarOpen ? 'ml-64' : ''}`}
       >
         <div className="flex flex-col items-center gap-4 w-full px-16" onClick={() => inputRef.current?.focus()}>
           <div className="flex items-center justify-between w-full px-8">

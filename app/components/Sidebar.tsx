@@ -6,6 +6,7 @@ import { buildLifecycleView } from '../utils/wordSelection';
 import { GRADUATION_STREAK } from '../utils/graduation';
 
 const UNTOUCHED_PEEK = 3;
+const GRADUATED_PEEK = 3;
 
 const getStatusColor = (isCandidate: boolean, fallback: string): string => {
   if (isCandidate) return 'text-cyan-400';
@@ -25,6 +26,7 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
   const [isEditingWpm, setIsEditingWpm] = useState(false);
   const [tempWpm, setTempWpm] = useState('');
   const [isUntouchedExpanded, setIsUntouchedExpanded] = useState(false);
+  const [isGraduatedExpanded, setIsGraduatedExpanded] = useState(false);
 
   const handleWpmSubmit = () => {
     const newWpm = parseInt(tempWpm);
@@ -41,8 +43,9 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
     }
   };
 
-  const { workingSet, untouched } = buildLifecycleView(wordStats, allWords);
+  const { workingSet, untouched, graduated } = buildLifecycleView(wordStats, allWords);
   const visibleUntouched = isUntouchedExpanded ? untouched.next : untouched.next.slice(0, UNTOUCHED_PEEK);
+  const visibleGraduated = isGraduatedExpanded ? graduated : graduated.slice(0, GRADUATED_PEEK);
 
   return (
     <div className={`fixed left-0 top-0 h-full bg-[#2c2c2c] transition-all duration-300 ${
@@ -152,6 +155,32 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
             );
           })}
         </ul>
+
+        {graduated.length > 0 && (
+          <div className="mt-4">
+            <p className="text-xs text-[#555] mb-1">↑ graduates at target pace</p>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm text-[#888]">{graduated.length} graduated</span>
+              {graduated.length > GRADUATED_PEEK && (
+                <button
+                  data-testid={isGraduatedExpanded ? 'graduated-collapse' : 'graduated-expand'}
+                  onClick={() => setIsGraduatedExpanded(!isGraduatedExpanded)}
+                  className="text-xs text-[#666] hover:text-[#888]"
+                >
+                  {isGraduatedExpanded ? '▲ less' : '▼ more'}
+                </button>
+              )}
+            </div>
+            <ul className="space-y-0.5">
+              {visibleGraduated.map(({ word, wpm }) => (
+                <li key={word} className="flex justify-between text-xs text-green-500">
+                  <span>{word}</span>
+                  <span>{wpm} wpm</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );

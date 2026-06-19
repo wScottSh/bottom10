@@ -261,3 +261,103 @@ describe('Sidebar untouched section', () => {
     expect(screen.queryByText(/untouched/i)).toBeNull();
   });
 });
+
+describe('Sidebar graduated section', () => {
+  // allWords has 10 words so the working set fills with untouched when some are graduated
+  const allWords = ['the', 'of', 'and', 'a', 'to', 'in', 'is', 'you', 'that', 'it'];
+
+  const makeGraduated = (lastScore: number): Partial<WordStats> => ({
+    lastScore,
+    consecutiveSubThreshold: 2, // GRADUATION_STREAK = 2
+  });
+
+  const renderSidebar = (wordStats: Record<string, WordStats> = {}) =>
+    render(
+      <Sidebar
+        isOpen={true}
+        wordStats={wordStats}
+        allWords={allWords}
+        toggleSidebar={() => {}}
+        onWpmChange={() => {}}
+        wpmTarget={75}
+      />
+    );
+
+  it('shows graduated count when words are graduated', () => {
+    const wordStats = {
+      the: makeStats(makeGraduated(120)),
+      of:  makeStats(makeGraduated(200)),
+    };
+    renderSidebar(wordStats);
+    expect(screen.getByText(/2 graduated/i)).toBeTruthy();
+  });
+
+  it('hides the graduated section entirely when no words are graduated', () => {
+    renderSidebar({});
+    expect(screen.queryByText(/graduated/i)).toBeNull();
+  });
+
+  it('shows peek words (best-first) in collapsed state', () => {
+    const wordStats = {
+      the: makeStats(makeGraduated(100)), // best (lowest score)
+      of:  makeStats(makeGraduated(120)),
+      and: makeStats(makeGraduated(140)),
+      a:   makeStats(makeGraduated(160)),
+      to:  makeStats(makeGraduated(180)), // worst
+    };
+    renderSidebar(wordStats);
+    // 'the' is the best (lowest score), should appear in peek
+    expect(screen.getByText('the')).toBeTruthy();
+  });
+
+  it('does not show words beyond GRADUATED_PEEK by default (collapsed)', () => {
+    const wordStats = {
+      the: makeStats(makeGraduated(100)),
+      of:  makeStats(makeGraduated(120)),
+      and: makeStats(makeGraduated(140)),
+      a:   makeStats(makeGraduated(160)),
+      to:  makeStats(makeGraduated(180)),
+    };
+    renderSidebar(wordStats);
+    // 'a' and 'to' are beyond GRADUATED_PEEK=3 in best-first order
+    expect(screen.queryByText('a')).toBeNull();
+    expect(screen.queryByText('to')).toBeNull();
+  });
+
+  it('has a connector hint indicating words graduate at target pace', () => {
+    const wordStats = {
+      the: makeStats(makeGraduated(120)),
+    };
+    renderSidebar(wordStats);
+    expect(screen.getByText(/target pace/i)).toBeTruthy();
+  });
+
+  it('expands to show all graduated words when expand button is clicked', () => {
+    const wordStats = {
+      the: makeStats(makeGraduated(100)),
+      of:  makeStats(makeGraduated(120)),
+      and: makeStats(makeGraduated(140)),
+      a:   makeStats(makeGraduated(160)),
+      to:  makeStats(makeGraduated(180)),
+    };
+    renderSidebar(wordStats);
+    fireEvent.click(screen.getByTestId('graduated-expand'));
+    expect(screen.getByText('a')).toBeTruthy();
+    expect(screen.getByText('to')).toBeTruthy();
+  });
+
+  it('collapses back to peek after clicking collapse button', () => {
+    const wordStats = {
+      the: makeStats(makeGraduated(100)),
+      of:  makeStats(makeGraduated(120)),
+      and: makeStats(makeGraduated(140)),
+      a:   makeStats(makeGraduated(160)),
+      to:  makeStats(makeGraduated(180)),
+    };
+    renderSidebar(wordStats);
+    fireEvent.click(screen.getByTestId('graduated-expand'));
+    fireEvent.click(screen.getByTestId('graduated-collapse'));
+    expect(screen.queryByText('a')).toBeNull();
+    expect(screen.queryByText('to')).toBeNull();
+  });
+});
