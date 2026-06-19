@@ -3,6 +3,7 @@
 import { useState, KeyboardEvent } from 'react';
 import { WordStats } from '../utils/wordUtils';
 import { buildLifecycleView } from '../utils/wordSelection';
+import { GRADUATION_STREAK } from '../utils/graduation';
 
 const getStatusColor = (isCandidate: boolean, fallback: string): string => {
   if (isCandidate) return 'text-cyan-400';
@@ -82,7 +83,7 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
         </div>
 
         <ul className="space-y-1">
-          {workingSet.map(({ word, wpm, isCandidate }, index) => {
+          {workingSet.map(({ word, wpm, streak, isCandidate }, index) => {
             const wordColor = getStatusColor(isCandidate, '');
             const wpmColor = getStatusColor(isCandidate, 'text-[#e2b714]');
             return (
@@ -91,12 +92,30 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
                   <span className={wordColor}>
                     {word}
                   </span>
-                  {wpm !== null && (
-                    <span className={wpmColor}>
-                      {wpm} wpm
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {Array.from({ length: GRADUATION_STREAK }, (_, i) =>
+                      i < streak ? (
+                        <span key={i} data-testid="pip-filled" className="text-[#e2b714] text-xs leading-none">●</span>
+                      ) : (
+                        <span key={i} data-testid="pip-empty" className="text-[#555] text-xs leading-none">●</span>
+                      )
+                    )}
+                    {wpm !== null && (
+                      <span className={wpmColor}>
+                        {wpm} wpm
+                      </span>
+                    )}
+                  </div>
                 </div>
+                {wpm !== null && (
+                  <div className="mt-0.5 h-1 w-full rounded bg-[#3c3c3c]">
+                    <div
+                      data-testid="wpm-bar"
+                      className="h-1 rounded bg-[#e2b714]"
+                      style={{ width: `${Math.min(100, Math.round(wpm / wpmTarget * 100))}%` }}
+                    />
+                  </div>
+                )}
               </li>
             );
           })}
