@@ -7,8 +7,9 @@ import GraduatedSidebar from './GraduatedSidebar';
 import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
 import { generateWordSet, computeWpmParticle, applySessionToStats, TypedWord, WordStats } from '../utils/wordUtils';
 import { TypingSessionState, applyKeystroke, CompletedWordOutcome } from '../utils/typingSession';
-import { loadWordStats, saveWordStats, resetAppData } from '../utils/persistence';
+import { resetAppData } from '../utils/persistence';
 import { usePersistedWpmTarget } from '../hooks/usePersistedWpmTarget';
+import { usePersistedWordStats } from '../hooks/usePersistedWordStats';
 
 function createInitialWordStats(): Record<string, WordStats> {
   return wordList.reduce((acc, word) => ({
@@ -16,6 +17,8 @@ function createInitialWordStats(): Record<string, WordStats> {
     [word]: { word, time: 0, attempts: 0, lastScore: 0 }
   }), {} as Record<string, WordStats>);
 }
+
+const INITIAL_WORD_STATS = createInitialWordStats();
 
 const INITIAL_SESSION: TypingSessionState = {
   currentInput: '',
@@ -29,7 +32,7 @@ const INITIAL_SESSION: TypingSessionState = {
 
 export default function TypingTest() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [globalWordStats, setGlobalWordStats] = useState(createInitialWordStats);
+  const [globalWordStats, setGlobalWordStats] = usePersistedWordStats(INITIAL_WORD_STATS);
   const [wpmTarget, setWpmTarget] = usePersistedWpmTarget();
 
   const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(true);
@@ -75,13 +78,6 @@ export default function TypingTest() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [testEnded, startNewTest]);
-
-  useEffect(() => {
-    const savedStats = loadWordStats();
-    if (Object.keys(savedStats).length > 0) {
-      setGlobalWordStats(savedStats);
-    }
-  }, []);
 
   // Consumes a completed-word outcome from the reducer: measures the word span's
   // bounding rect and spawns a WPM particle. Timing is owned by the reducer.
@@ -136,7 +132,6 @@ export default function TypingTest() {
     const updatedStats = applySessionToStats(globalWordStats, typedWordsData, wpmTarget);
     const newWords = generateWordSet(wordCount, updatedStats, wordList);
 
-    saveWordStats(updatedStats);
     setGlobalWordStats(updatedStats);
     startTestWithWords(newWords);
   };
