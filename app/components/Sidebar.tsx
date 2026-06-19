@@ -93,13 +93,18 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
                     {word}
                   </span>
                   <div className="flex items-center gap-1.5">
-                    {Array.from({ length: GRADUATION_STREAK }, (_, i) =>
-                      i < streak ? (
-                        <span key={i} data-testid="pip-filled" className="text-[#e2b714] text-xs leading-none">●</span>
-                      ) : (
-                        <span key={i} data-testid="pip-empty" className="text-[#555] text-xs leading-none">●</span>
-                      )
-                    )}
+                    {Array.from({ length: GRADUATION_STREAK }, (_, i) => {
+                      const filled = i < streak;
+                      return (
+                        <span
+                          key={i}
+                          data-testid={filled ? 'pip-filled' : 'pip-empty'}
+                          className={`text-xs leading-none ${filled ? 'text-[#e2b714]' : 'text-[#555]'}`}
+                        >
+                          ●
+                        </span>
+                      );
+                    })}
                     {wpm !== null && (
                       <span className={wpmColor}>
                         {wpm} wpm
