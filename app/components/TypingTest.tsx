@@ -9,8 +9,7 @@ import { computeWpmParticle, WordStats } from '../utils/wordUtils';
 import { generateWordSet } from '../utils/wordGeneration';
 import { CompletedWordOutcome } from '../utils/typingSession';
 import { resetAppData } from '../utils/persistence';
-import { usePersistedWpmTarget } from '../hooks/usePersistedWpmTarget';
-import { usePersistedWordStats } from '../hooks/usePersistedWordStats';
+import { usePersistedProgress } from '../hooks/usePersistedProgress';
 import { useTestOrchestration } from '../hooks/useTestOrchestration';
 import { ClockLike, WALL_CLOCK } from '../utils/clock';
 
@@ -25,8 +24,7 @@ const INITIAL_WORD_STATS = createInitialWordStats();
 
 export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike } = {}) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [globalWordStats, setGlobalWordStats] = usePersistedWordStats(INITIAL_WORD_STATS);
-  const [wpmTarget, setWpmTarget] = usePersistedWpmTarget();
+  const { wordStats: globalWordStats, setWordStats: setGlobalWordStats, wpmTarget, setWpmTarget } = usePersistedProgress(INITIAL_WORD_STATS);
   const [isGraduatedSidebarOpen, setIsGraduatedSidebarOpen] = useState(true);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
