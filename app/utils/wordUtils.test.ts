@@ -1,24 +1,22 @@
 import { describe, it, test, expect } from 'vitest';
 import {
-  calculateNormalizedScore,
-  calculateGraduationThreshold,
   computeWordElapsedTime,
   computeWordTimingFromEvents,
-  scoreToWpm,
   computeWpmParticle,
   applySessionToStats,
   compareByScore,
   KeystrokeEvent,
   WordStats,
 } from './wordUtils';
+import { scoreFromElapsed, wpmFromScore, graduationThreshold } from './score';
 import { isGraduated } from './graduation';
 
 describe('normalized scoring seam', () => {
   test('graduation threshold equals ms-per-char at target WPM', () => {
     // At 60 WPM, avgCharsPerWord=5: 60000 / (60 * 5) = 200 ms/char
-    expect(calculateGraduationThreshold(60)).toBe(200);
+    expect(graduationThreshold(60)).toBe(200);
     // At 40 WPM: 60000 / (40 * 5) = 300 ms/char
-    expect(calculateGraduationThreshold(40)).toBe(300);
+    expect(graduationThreshold(40)).toBe(300);
   });
 
   test('short and long words typed at equal cadence receive equal normalized scores', () => {
@@ -26,8 +24,8 @@ describe('normalized scoring seam', () => {
     const shortWord = 'hi';  // length 2
     const longWord = 'hello'; // length 5
 
-    const shortScore = calculateNormalizedScore(cadenceMs * shortWord.length, shortWord.length);
-    const longScore = calculateNormalizedScore(cadenceMs * longWord.length, longWord.length);
+    const shortScore = scoreFromElapsed(cadenceMs * shortWord.length, shortWord.length);
+    const longScore = scoreFromElapsed(cadenceMs * longWord.length, longWord.length);
 
     expect(shortScore).toBe(cadenceMs);
     expect(longScore).toBe(cadenceMs);
@@ -37,11 +35,11 @@ describe('normalized scoring seam', () => {
   test('fast short word score is below graduation threshold', () => {
     // At 60 WPM, threshold = 200 ms/char
     const wpmTarget = 60;
-    const threshold = calculateGraduationThreshold(wpmTarget);
+    const threshold = graduationThreshold(wpmTarget);
 
     // "hi" typed at 80 ms/char => total time 160ms
     const fastShortWordTime = 80 * 'hi'.length;
-    const score = calculateNormalizedScore(fastShortWordTime, 'hi'.length);
+    const score = scoreFromElapsed(fastShortWordTime, 'hi'.length);
 
     expect(score).toBeLessThan(threshold);
     // Durable graduation requires 2 consecutive sub-threshold tests; one alone is not enough.
@@ -52,13 +50,13 @@ describe('normalized scoring seam', () => {
   });
 });
 
-describe('calculateGraduationThreshold', () => {
+describe('graduationThreshold (score module)', () => {
   it('returns correct threshold for 60 wpm', () => {
-    expect(calculateGraduationThreshold(60)).toBe(200);
+    expect(graduationThreshold(60)).toBe(200);
   });
 
   it('returns correct threshold for 120 wpm', () => {
-    expect(calculateGraduationThreshold(120)).toBe(100);
+    expect(graduationThreshold(120)).toBe(100);
   });
 });
 
@@ -84,11 +82,11 @@ describe('computeWordElapsedTime', () => {
 
   test('fast short word score is sub-threshold with first-keystroke timing but not with switch-cost-inflated timing', () => {
     const wpmTarget = 60;
-    const threshold = calculateGraduationThreshold(wpmTarget); // 200 ms/char
+    const threshold = graduationThreshold(wpmTarget); // 200 ms/char
 
     // "hi" typed at 80ms/char: elapsed = 160ms, score = 80ms/char < threshold
     const elapsed = computeWordElapsedTime(0, 160);
-    const score = calculateNormalizedScore(elapsed, 'hi'.length);
+    const score = scoreFromElapsed(elapsed, 'hi'.length);
 
     expect(score).toBeLessThan(threshold);
     // After two consecutive sub-threshold tests the word is durably graduated
@@ -97,7 +95,7 @@ describe('computeWordElapsedTime', () => {
 
     // With old switch-cost-inflated timing (500ms inter-word gap added), score is above threshold
     const oldElapsed = elapsed + 500;
-    const oldScore = calculateNormalizedScore(oldElapsed, 'hi'.length);
+    const oldScore = scoreFromElapsed(oldElapsed, 'hi'.length);
     expect(oldScore).toBeGreaterThanOrEqual(threshold);
   });
 
@@ -118,12 +116,12 @@ describe('computeWordElapsedTime', () => {
 
     // No pause: started immediately
     const elapsedNoPause = computeWordElapsedTime(0, cadenceMs * word.length);
-    const scoreNoPause = calculateNormalizedScore(elapsedNoPause, word.length);
+    const scoreNoPause = scoreFromElapsed(elapsedNoPause, word.length);
 
     // Long pause (2 s) before first character
     const pauseMs = 2000;
     const elapsedWithPause = computeWordElapsedTime(pauseMs, pauseMs + cadenceMs * word.length);
-    const scoreWithPause = calculateNormalizedScore(elapsedWithPause, word.length);
+    const scoreWithPause = scoreFromElapsed(elapsedWithPause, word.length);
 
     expect(scoreNoPause).toBe(cadenceMs);
     expect(scoreWithPause).toBe(cadenceMs);
@@ -174,16 +172,16 @@ describe('computeWordTimingFromEvents', () => {
 
   test('fast short word score is sub-threshold with sequence timing; switch-cost-inflated score is above', () => {
     const wpmTarget = 60;
-    const threshold = calculateGraduationThreshold(wpmTarget); // 200 ms/char
+    const threshold = graduationThreshold(wpmTarget); // 200 ms/char
 
     // "hi" typed at 80ms/char (160ms total) but with a 500ms pre-word pause
     const events = [ev('h', 500), ev('i', 580), ev(' ', 660)];
     const elapsed = computeWordTimingFromEvents(events); // 660 - 500 = 160
-    const score = calculateNormalizedScore(elapsed, 'hi'.length);
+    const score = scoreFromElapsed(elapsed, 'hi'.length);
     expect(score).toBeLessThan(threshold); // 80 < 200 → can graduate
 
     // Old approach measured from t=0: elapsed = 660, score = 330 > threshold
-    const oldScore = calculateNormalizedScore(660, 'hi'.length);
+    const oldScore = scoreFromElapsed(660, 'hi'.length);
     expect(oldScore).toBeGreaterThan(threshold);
   });
 
@@ -222,25 +220,25 @@ describe('computeWordTimingFromEvents', () => {
 });
 
 
-describe('scoreToWpm', () => {
+describe('wpmFromScore (score module)', () => {
   // lastScore = avgTime_ms / wordLength; wpm = 12000 / lastScore
   it('converts 300 ms/char to 40 wpm', () => {
-    expect(scoreToWpm(300)).toBe(40);
+    expect(wpmFromScore(300)).toBe(40);
   });
 
   it('converts 200 ms/char to 60 wpm', () => {
-    expect(scoreToWpm(200)).toBe(60);
+    expect(wpmFromScore(200)).toBe(60);
   });
 
   it('converts 120 ms/char to 100 wpm', () => {
-    expect(scoreToWpm(120)).toBe(100);
+    expect(wpmFromScore(120)).toBe(100);
   });
 
   it('rounds to the nearest integer', () => {
     // 12000 / 250 = 48 exactly
-    expect(scoreToWpm(250)).toBe(48);
+    expect(wpmFromScore(250)).toBe(48);
     // 12000 / 350 ≈ 34.28 → rounds to 34
-    expect(scoreToWpm(350)).toBe(34);
+    expect(wpmFromScore(350)).toBe(34);
   });
 });
 
@@ -280,7 +278,7 @@ describe('computeWpmParticle', () => {
   it('wpm agrees with the scoring pipeline for representative inputs', () => {
     const elapsed = 800;
     const wordLength = 4;
-    const expected = scoreToWpm(calculateNormalizedScore(elapsed, wordLength));
+    const expected = wpmFromScore(scoreFromElapsed(elapsed, wordLength));
     const { wpm } = computeWpmParticle(elapsed, wordLength, WPM_TARGET);
     expect(wpm).toBe(expected);
   });
@@ -323,7 +321,7 @@ describe('applySessionToStats', () => {
     const stats = baseStats(['hi']);
     const typedWords = [{ word: 'hi', time: 400, errors: 0 }]; // 400 / 2 = 200 ms/char
     const result = applySessionToStats(stats, typedWords, wpmTarget);
-    expect(result['hi'].lastScore).toBe(calculateNormalizedScore(400, 2));
+    expect(result['hi'].lastScore).toBe(scoreFromElapsed(400, 2));
   });
 
   test('runs updateGraduationCounter: sub-threshold word increments consecutiveSubThreshold', () => {
