@@ -278,6 +278,22 @@ label {
   animation: graduation-flight-arc 450ms ease-in-out forwards;
 }
 
+@keyframes graduation-slot-collapse {
+  from { opacity: 0.7; transform: scaleY(1); }
+  to   { opacity: 0;   transform: scaleY(0); }
+}
+
+.graduation-departing-slot {
+  position: fixed;
+  pointer-events: none;
+  transform-origin: top;
+  background-color: var(--bg-secondary);
+  overflow: hidden;
+  z-index: 99;
+  animation: graduation-slot-collapse 180ms ease-in forwards;
+  animation-fill-mode: both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .graduation-pulse {
     animation-duration: 400ms;

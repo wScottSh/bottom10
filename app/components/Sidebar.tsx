@@ -55,7 +55,7 @@ export default function Sidebar({ isOpen, wordStats, allWords, toggleSidebar, on
       .map(word => {
         const sr = prevRowRectsRef.current.get(word);
         if (!sr) return null;
-        return { word, srcTop: sr.top, srcLeft: sr.left, dstTop: dstRect.top, dstLeft: dstRect.left };
+        return { word, srcTop: sr.top, srcLeft: sr.left, srcWidth: sr.width, srcHeight: sr.height, dstTop: dstRect.top, dstLeft: dstRect.left };
       })
       .filter((s): s is FlightSource => s !== null);
     if (sources.length > 0) setFlightSources(sources);
