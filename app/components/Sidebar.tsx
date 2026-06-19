@@ -4,10 +4,10 @@ import { useState, KeyboardEvent } from 'react';
 import { WordStats } from '../utils/wordUtils';
 import { selectActiveWordRows } from '../utils/wordSelection';
 
-// Color for a word's status: graduated and candidate words share their colors,
-// while ordinary words fall back to a caller-supplied default.
-const getStatusColor = (isGraduated: boolean, isCandidate: boolean, fallback: string): string => {
-  if (isGraduated) return 'text-green-500';
+// Color for a word's status: graduation candidates get a highlight, while
+// ordinary words fall back to a caller-supplied default. Graduated words are
+// excluded from the list upstream, so they never reach this helper.
+const getStatusColor = (isCandidate: boolean, fallback: string): string => {
   if (isCandidate) return 'text-cyan-400';
   return fallback;
 };
@@ -85,8 +85,8 @@ export default function Sidebar({ isOpen, wordStats, toggleSidebar, onWpmChange,
 
         <ul className="space-y-1">
           {sortedWords.map(({ word, wpm, isCandidate }, index) => {
-            const wordColor = getStatusColor(false, isCandidate, '');
-            const wpmColor = getStatusColor(false, isCandidate, 'text-[#e2b714]');
+            const wordColor = getStatusColor(isCandidate, '');
+            const wpmColor = getStatusColor(isCandidate, 'text-[#e2b714]');
             return (
               <li key={`${word}-${index}`}>
                 <div className="flex justify-between text-sm">
