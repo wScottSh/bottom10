@@ -55,26 +55,25 @@ export function usePersistedProgress(
     } catch {}
   }
 
-  function setWordStats(stats: Record<string, WordStats>) {
-    const next: ProgressState = { wordStats: stats, wpmTarget: stateRef.current.wpmTarget, showKeyboardLayout: stateRef.current.showKeyboardLayout };
+  // Merge a partial update over the latest state, then sync the ref, React state, and storage.
+  function update(partial: Partial<ProgressState>) {
+    const next: ProgressState = { ...stateRef.current, ...partial };
     stateRef.current = next;
     setState(next);
     persist(next);
+  }
+
+  function setWordStats(stats: Record<string, WordStats>) {
+    update({ wordStats: stats });
   }
 
   function setWpmTarget(wpm: number) {
     if (typeof wpm !== 'number' || wpm <= 0) return;
-    const next: ProgressState = { wordStats: stateRef.current.wordStats, wpmTarget: wpm, showKeyboardLayout: stateRef.current.showKeyboardLayout };
-    stateRef.current = next;
-    setState(next);
-    persist(next);
+    update({ wpmTarget: wpm });
   }
 
   function setShowKeyboardLayout(value: boolean) {
-    const next: ProgressState = { wordStats: stateRef.current.wordStats, wpmTarget: stateRef.current.wpmTarget, showKeyboardLayout: value };
-    stateRef.current = next;
-    setState(next);
-    persist(next);
+    update({ showKeyboardLayout: value });
   }
 
   return {
