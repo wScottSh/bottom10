@@ -1,6 +1,9 @@
-// Pure typing-session reducer: owns all per-keystroke state transitions —
-// correct character entry, space-advance, error detection, isWordErrored latching,
-// backspace recovery, word timing, and completed-word outcome emission.
+// Pure typing-session reducer. The input field's value is the single source of
+// truth: every keystroke re-derives the whole word state from the full input
+// string rather than diffing one character at a time. That makes paste, IME
+// composition, autocorrect, select-and-replace, and multi-character chords (e.g.
+// a CharaChorder emitting a whole word at once) behave correctly, instead of the
+// old "only the last character changed" assumption.
 
 export interface TypingSessionState {
   currentInput: string;
@@ -12,8 +15,8 @@ export interface TypingSessionState {
   wordStartTimestamp: number | null;
 }
 
-// Emitted when a word is completed (space pressed after a correctly typed word,
-// including the last word, which now also requires a space — see isAwaitingFinish).
+// Emitted when a word is completed (space pressed on an exactly-correct word,
+// including the last word, which also requires a space — see isAwaitingFinish).
 // Carries the data TypingTest needs to record the attempt and spawn the WPM
 // particle without any DOM measurement.
 export interface CompletedWordOutcome {
@@ -26,10 +29,18 @@ export interface ApplyKeystrokeResult {
   completedWord: CompletedWordOutcome | null;
 }
 
-// Applies one keystroke to the session state. Returns the new state and an
-// optional completed-word outcome. state is returned as the original reference
-// (===) only when the keystroke is a true no-op (space on wrong word, blocked
-// by isWordErrored, no current word).
+// How many characters past the end of a word the typist may over-type before the
+// reducer stops growing the input. Over-typed characters are kept (so they render
+// red and can be backspaced) rather than silently swallowed, but a stuck key or a
+// huge paste can't grow the buffer without bound.
+const EXTRA_CHAR_CAP = 8;
+
+// Applies one keystroke to the session state by re-deriving everything from
+// newValue (the full, authoritative input-field string). Returns the new state
+// and an optional completed-word outcome. The state is returned as the original
+// reference (===) only when there is no current word (a true no-op); every other
+// keystroke returns a fresh object so the controlled input always re-renders back
+// to currentInput and can never diverge from session state.
 export function applyKeystroke(
   state: TypingSessionState,
   newValue: string,
@@ -39,84 +50,60 @@ export function applyKeystroke(
   const currentWord = words[state.currentWordIndex];
   if (!currentWord) return { state, completedWord: null };
 
-  // Elapsed typing time for the current word; 0 if the clock never started.
   const elapsedSince = (start: number | null) => (start !== null ? timestamp - start : 0);
 
-  // Space: advance on correct word, ignore on partial/wrong word.
-  if (newValue.endsWith(' ')) {
-    if (newValue.trim() === currentWord) {
-      return {
-        state: {
-          ...state,
-          currentInput: '',
-          currentWordIndex: state.currentWordIndex + 1,
-          currentCharIndex: 0,
-          hasError: false,
-          isWordErrored: false,
-          wordStartTimestamp: null,
-        },
-        completedWord: { word: currentWord, elapsed: elapsedSince(state.wordStartTimestamp) },
-      };
-    }
-    return { state, completedWord: null };
-  }
+  // Space is an advance signal, never stored as content. Strip every space to get
+  // the typed content; the presence of a space means the typist asked to advance.
+  const hadSpace = newValue.includes(' ');
+  let typed = newValue.replace(/ /g, '');
 
-  // Backspace: shrink input, clear hasError, clear isWordErrored only when empty.
-  if (newValue.length < state.currentInput.length) {
+  // Advance to the next word only when the word is typed exactly right, a space was
+  // pressed, AND the per-word clock has already started. The exact-match rule means
+  // an errored or incomplete word can never be completed by pressing space. The
+  // clock-started rule means an atomic "word + space" paste/chord can't complete in
+  // zero elapsed time (which would post an infinite WPM); instead it falls through,
+  // lands the content, starts the clock, and the next space completes it.
+  if (hadSpace && typed === currentWord && state.wordStartTimestamp !== null) {
     return {
       state: {
         ...state,
-        currentInput: newValue,
-        currentCharIndex: newValue.length,
+        currentInput: '',
+        currentWordIndex: state.currentWordIndex + 1,
+        currentCharIndex: 0,
         hasError: false,
-        isWordErrored: newValue.length === 0 ? false : state.isWordErrored,
+        isWordErrored: false,
+        wordStartTimestamp: null,
       },
-      completedWord: null,
+      completedWord: { word: currentWord, elapsed: elapsedSince(state.wordStartTimestamp) },
     };
   }
 
-  // Adding a character. isWordErrored blocks all input until backspace clears it.
-  if (state.isWordErrored) return { state, completedWord: null };
+  // Cap the stored input: the word plus a few over-typed characters.
+  const maxLen = currentWord.length + EXTRA_CHAR_CAP;
+  if (typed.length > maxLen) typed = typed.slice(0, maxLen);
 
-  // Typing the first character of the test starts the clock, right or wrong.
-  const testStarted = state.testStarted || newValue.length === 1;
-  const newChar = newValue[newValue.length - 1];
-  const expectedChar = currentWord[state.currentInput.length];
-  // Start timing on the first character typed for this word (right or wrong).
-  const wordStartTimestamp = state.wordStartTimestamp ?? (newValue.length === 1 ? timestamp : null);
+  // Errored when what's typed is not a correct leading prefix of the word — any
+  // mismatched character, or any character typed past the word's end. (startsWith
+  // is false for an over-length string, so it also covers extra characters.)
+  const isErrored = !currentWord.startsWith(typed);
 
-  if (newChar !== expectedChar) {
-    // Wrong character: red the whole word (isWordErrored) until backspaced clear.
-    // On the first char we must record the rejected keystroke in currentInput so a
-    // real Backspace fires later — an empty field fires no onChange for Backspace in
-    // real browsers, which would strand the word red forever (issue #27). currentCharIndex
-    // stays put so the cursor doesn't advance over the rejected char. Mid-word, the
-    // correct prefix is already there to delete, so leave currentInput untouched.
-    const firstChar = state.currentInput.length === 0;
-    return {
-      state: {
-        ...state,
-        currentInput: firstChar ? newValue : state.currentInput,
-        hasError: true,
-        isWordErrored: true,
-        testStarted,
-        wordStartTimestamp,
-      },
-      completedWord: null,
-    };
-  }
+  // The per-word clock starts on the first content typed (right or wrong) and is
+  // preserved across backspaces — fumbling counts as genuine difficulty.
+  const wordStartTimestamp = state.wordStartTimestamp ?? (typed.length > 0 ? timestamp : null);
+  const testStarted = state.testStarted || typed.length > 0;
 
-  // Happy path: correct character entry.
-  const newState: TypingSessionState = {
-    ...state,
-    currentInput: newValue,
-    currentCharIndex: newValue.length,
-    hasError: false,
-    testStarted,
-    wordStartTimestamp,
+  return {
+    state: {
+      ...state,
+      currentInput: typed,
+      currentCharIndex: typed.length,
+      hasError: isErrored,
+      isWordErrored: isErrored,
+      testStarted,
+      wordStartTimestamp,
+    },
+    completedWord: null,
   };
-
-  return { state: newState, completedWord: null };
 }
 
 // True only when the typist has fully and correctly typed the last word and is

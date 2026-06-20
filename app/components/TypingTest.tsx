@@ -88,6 +88,11 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
 
   const intensity = shakeIntensity(session.currentWordIndex, words.length);
 
+  // The blinking position caret, reused wherever the cursor lands.
+  const caret = (
+    <span className="absolute left-0 bottom-[0.15em] w-full h-[2px] bg-[#e2b714] transition-all duration-[50ms] ease-out" />
+  );
+
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const wordIndex = session.currentWordIndex;
     const newValue = e.target.value;
@@ -217,40 +222,57 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
               data-testid="words-field"
               className={isFadingIn ? 'words-fade-in' : ''}
               style={{ '--words-fade-in-duration': `${FADE_IN.durationMs}ms` } as React.CSSProperties}
-            >{words.map((word, wordIndex) => (
+            >{words.map((word, wordIndex) => {
+              const isCurrent = wordIndex === session.currentWordIndex;
+              const input = session.currentInput;
+              // Over-typed characters past the end of the word — kept so they
+              // render red and can be backspaced, never silently swallowed.
+              const extras = isCurrent && input.length > word.length
+                ? input.slice(word.length)
+                : '';
+              return (
               <span
                 key={wordIndex}
                 ref={el => { wordSpanRefs.current[wordIndex] = el; }}
                 className={`word ${getWordClassName(wordIndex)}`}
               >
                 {word.split('').map((char, charIndex) => {
+                  // Colour each slot by what was actually typed there: yellow when
+                  // correct, red when wrong, neutral when not yet typed.
                   let charClass = '';
-                  if (wordIndex === session.currentWordIndex) {
-                    if (!session.isWordErrored && charIndex < session.currentCharIndex) charClass = 'char-correct';
-                    else if (charIndex === session.currentCharIndex && session.hasError) charClass = 'char-error';
+                  if (isCurrent && charIndex < input.length) {
+                    charClass = input[charIndex] === char ? 'char-correct' : 'char-error';
                   }
+                  // Caret sits on the next slot to type while it is still in the word.
+                  const showCaret = isCurrent && charIndex === input.length && input.length < word.length;
                   return (
                     <span
                       key={charIndex}
                       className={`char relative pb-[0.3em] ${charClass}`}
                     >
                       {char}
-                      {wordIndex === session.currentWordIndex &&
-                      charIndex === session.currentCharIndex && (
-                        <span className="absolute left-0 bottom-[0.15em] w-full h-[2px] bg-[#e2b714] transition-all duration-[50ms] ease-out" />
-                      )}
+                      {showCaret && caret}
                     </span>
                   );
                 })}
+                {extras.split('').map((char, k) => (
+                  <span
+                    key={`extra-${k}`}
+                    className="char relative pb-[0.3em] char-error"
+                  >
+                    {char}
+                    {k === extras.length - 1 && caret}
+                  </span>
+                ))}
                 <span className="char relative pb-[0.3em]">
                   {' '}
-                  {wordIndex === session.currentWordIndex &&
-                  word.length === session.currentCharIndex && (
+                  {isCurrent && input.length === word.length && (
                     <span className="absolute left-0 bottom-[0.15em] w-full h-[2px] bg-[#e2b714] transition-all duration-[50ms] ease-out" />
                   )}
                 </span>{/* Remove whitespace here */}
               </span>
-            ))}{/* Remove whitespace here */}</div>
+              );
+            })}{/* Remove whitespace here */}</div>
           </div>
           <FinishPrompt visible={isAwaitingFinish(session, words)} />
           <input

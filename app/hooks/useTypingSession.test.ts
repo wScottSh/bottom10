@@ -42,17 +42,20 @@ describe('useTypingSession — word completion', () => {
 });
 
 describe('useTypingSession — error-latch and backspace recovery', () => {
-  it('latches isWordErrored on wrong mid-word char and blocks further input', () => {
+  it('stores a wrong mid-word char and keeps the word errored as typing continues', () => {
     const { result } = renderHook(() => useTypingSession());
 
     act(() => { result.current.applyKeystroke('h', words, 1000); });
     act(() => { result.current.applyKeystroke('hx', words, 1100); });
 
     expect(result.current.session.isWordErrored).toBe(true);
-    expect(result.current.session.currentInput).toBe('h');
+    // The wrong char is kept (not swallowed) so Backspace removes exactly what was typed.
+    expect(result.current.session.currentInput).toBe('hx');
 
+    // Input is not blocked while errored; it keeps growing and stays red.
     act(() => { result.current.applyKeystroke('hxz', words, 1200); });
-    expect(result.current.session.currentInput).toBe('h');
+    expect(result.current.session.currentInput).toBe('hxz');
+    expect(result.current.session.isWordErrored).toBe(true);
   });
 
   it('backspace to empty clears the error latch and allows correct typing', () => {

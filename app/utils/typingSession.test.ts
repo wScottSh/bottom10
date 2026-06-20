@@ -45,14 +45,14 @@ describe('applyKeystroke — correct character entry', () => {
     expect(next.currentInput).toBe('h');
   });
 
-  it('sets hasError, latches isWordErrored, and records the rejected first char', () => {
+  it('sets hasError, isWordErrored, and stores the wrong first char', () => {
     const { state: next } = applyKeystroke(base, 'x', words, 1000);
     expect(next.hasError).toBe(true);
     expect(next.isWordErrored).toBe(true);
-    // The wrong char is stored so a real Backspace can later fire and clear it.
+    // The wrong char is stored so a real Backspace can later fire and clear it (issue #27).
     expect(next.currentInput).toBe('x');
-    // Cursor does not advance over the rejected char.
-    expect(next.currentCharIndex).toBe(0);
+    // Cursor reflects the stored character — the input string is the source of truth.
+    expect(next.currentCharIndex).toBe(1);
   });
 
   it('sets testStarted when wrong first character is typed', () => {
@@ -60,19 +60,22 @@ describe('applyKeystroke — correct character entry', () => {
     expect(next.testStarted).toBe(true);
   });
 
-  it('sets hasError and latches isWordErrored for a wrong mid-word character', () => {
+  it('sets hasError and isWordErrored for a wrong mid-word character, storing it', () => {
     const state = { ...base, currentInput: 'h', currentCharIndex: 1 };
     const { state: next } = applyKeystroke(state, 'hx', words, 1000);
     expect(next.hasError).toBe(true);
     expect(next.isWordErrored).toBe(true);
-    expect(next.currentInput).toBe('h');
-    expect(next.currentCharIndex).toBe(1);
+    // The wrong char is kept (not swallowed) so Backspace removes exactly what was typed.
+    expect(next.currentInput).toBe('hx');
+    expect(next.currentCharIndex).toBe(2);
   });
 
-  it('returns state unchanged when word is errored (isWordErrored)', () => {
-    const state = { ...base, currentInput: 'h', currentCharIndex: 1, isWordErrored: true };
-    const { state: next } = applyKeystroke(state, 'hx', words, 1000);
-    expect(next).toBe(state);
+  it('does not block input while errored — error is re-derived from the typed string', () => {
+    const state = { ...base, currentInput: 'hx', currentCharIndex: 2, hasError: true, isWordErrored: true };
+    const { state: next } = applyKeystroke(state, 'hxy', words, 1000);
+    // Input keeps growing; the word stays errored because 'hxy' is not a prefix of 'hello'.
+    expect(next.currentInput).toBe('hxy');
+    expect(next.isWordErrored).toBe(true);
   });
 });
 
@@ -91,23 +94,26 @@ describe('applyKeystroke — backspace recovery', () => {
     expect(next.isWordErrored).toBe(false);
   });
 
-  it('backspace mid-word keeps isWordErrored until empty', () => {
-    const state = { ...base, currentInput: 'he', currentCharIndex: 2, hasError: true, isWordErrored: true };
+  it('backspace to a correct prefix clears the error and keeps the correct letters', () => {
+    const state = { ...base, currentInput: 'hx', currentCharIndex: 2, hasError: true, isWordErrored: true };
     const { state: next } = applyKeystroke(state, 'h', words, 1000);
     expect(next.currentInput).toBe('h');
-    expect(next.isWordErrored).toBe(true);
+    // 'h' is a correct prefix of 'hello', so the word is no longer errored.
+    expect(next.isWordErrored).toBe(false);
     expect(next.hasError).toBe(false);
   });
 
   it('recovers from wrong first char via backspace (stuck-word scenario 1)', () => {
-    // Wrong first char: error latched, rejected char stored so Backspace can fire.
+    // Wrong first char: error shown, the rejected char stored so Backspace can fire.
     let state = applyKeystroke(base, 'x', words, 100).state;
     expect(state.hasError).toBe(true);
     expect(state.isWordErrored).toBe(true);
     expect(state.currentInput).toBe('x');
-    // Locked until backspaced — typing the correct char is blocked (same ref).
-    expect(applyKeystroke(state, 'xh', words, 150).state).toBe(state);
-    // Backspace to empty clears the lock — never stuck.
+    // Typing while errored is allowed (input is the source of truth); still red.
+    state = applyKeystroke(state, 'xh', words, 150).state;
+    expect(state.currentInput).toBe('xh');
+    expect(state.isWordErrored).toBe(true);
+    // Backspace to empty clears the error — never stuck.
     state = applyKeystroke(state, '', words, 200).state;
     expect(state.currentInput).toBe('');
     expect(state.isWordErrored).toBe(false);
@@ -117,29 +123,27 @@ describe('applyKeystroke — backspace recovery', () => {
     expect(state.hasError).toBe(false);
   });
 
-  it('recovers from wrong mid-word char after backspacing to empty (stuck-word scenario 2)', () => {
+  it('recovers from a wrong mid-word char by backspacing just the typo (scenario 2)', () => {
     // Type first char correctly.
     let state = applyKeystroke(base, 'h', words, 100).state;
-    // Wrong second char latches isWordErrored.
+    // Wrong second char is stored and reds the word.
     state = applyKeystroke(state, 'hx', words, 200).state;
     expect(state.isWordErrored).toBe(true);
+    expect(state.currentInput).toBe('hx');
+    // ONE backspace removes exactly the typo and restores the correct prefix — not red.
+    state = applyKeystroke(state, 'h', words, 300).state;
     expect(state.currentInput).toBe('h');
-    // Blocked by isWordErrored — returns same reference.
-    expect(applyKeystroke(state, 'hxz', words, 300).state).toBe(state);
-    // Backspace down to empty clears isWordErrored.
-    state = applyKeystroke(state, '', words, 400).state;
-    expect(state.currentInput).toBe('');
     expect(state.isWordErrored).toBe(false);
-    // Can now type correct first char again.
-    state = applyKeystroke(state, 'h', words, 500).state;
-    expect(state.currentInput).toBe('h');
+    // Typing continues from where you were — never thrown back to the start.
+    state = applyKeystroke(state, 'he', words, 400).state;
+    expect(state.currentInput).toBe('he');
     expect(state.hasError).toBe(false);
   });
 });
 
 describe('applyKeystroke — space word advance', () => {
   it('advances to next word on space after correct word', () => {
-    const state = { ...base, currentInput: 'hello', currentCharIndex: 5 };
+    const state = { ...base, currentInput: 'hello', currentCharIndex: 5, wordStartTimestamp: 500 };
     const { state: next } = applyKeystroke(state, 'hello ', words, 1000);
     expect(next.currentWordIndex).toBe(1);
     expect(next.currentInput).toBe('');
@@ -148,10 +152,13 @@ describe('applyKeystroke — space word advance', () => {
     expect(next.isWordErrored).toBe(false);
   });
 
-  it('returns state unchanged when space is pressed with wrong word', () => {
-    const state = { ...base, currentInput: 'hell', currentCharIndex: 4 };
-    const { state: next } = applyKeystroke(state, 'hell ', words, 1000);
-    expect(next).toBe(state);
+  it('ignores the space and does not advance when the word is incomplete', () => {
+    const state = { ...base, currentInput: 'hell', currentCharIndex: 4, wordStartTimestamp: 500 };
+    const { state: next, completedWord } = applyKeystroke(state, 'hell ', words, 1000);
+    expect(next.currentWordIndex).toBe(0);
+    // The space is never stored as content; the typed prefix is kept.
+    expect(next.currentInput).toBe('hell');
+    expect(completedWord).toBeNull();
   });
 
   it('returns state unchanged when no current word exists', () => {
@@ -205,10 +212,15 @@ describe('applyKeystroke — word completion outcome', () => {
     expect(completedWord).toBeNull();
   });
 
-  it('elapsed is 0 when wordStartTimestamp is null on completion', () => {
+  it('does NOT complete on space when the clock never started (atomic-paste guard)', () => {
+    // currentInput equals the word but the per-word clock was never started — only
+    // reachable by pasting/chording "word + space" in one event. Completing here would
+    // post elapsed 0 (infinite WPM), so instead the content lands and the clock starts.
     const state = { ...base, currentInput: 'hello', currentCharIndex: 5, wordStartTimestamp: null };
-    const { completedWord } = applyKeystroke(state, 'hello ', words, 1500);
-    expect(completedWord).toEqual({ word: 'hello', elapsed: 0 });
+    const { completedWord, state: next } = applyKeystroke(state, 'hello ', words, 1500);
+    expect(completedWord).toBeNull();
+    expect(next.currentWordIndex).toBe(0);
+    expect(next.wordStartTimestamp).toBe(1500);
   });
 });
 
