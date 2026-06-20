@@ -443,3 +443,25 @@ label {
 .words-fade-in {
   animation: words-fade-in var(--words-fade-in-duration, 180ms) ease-out forwards;
 }
+
+/* Keyboard layout strip — fixed bottom dock showing the CC2 key layout reference */
+.keyboard-layout-strip {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 140px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.keyboard-layout-img {
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+}

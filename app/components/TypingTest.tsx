@@ -6,6 +6,7 @@ import Sidebar from './Sidebar';
 import WpmParticles, { WpmParticlesHandle } from './WpmParticles';
 import DetonationParticles, { DetonationHandle, DetonationLetter } from './DetonationParticles';
 import FinishPrompt from './FinishPrompt';
+import KeyboardLayout from './KeyboardLayout';
 import { computeWpmParticle, WordStats } from '../utils/wordUtils';
 import { generateWordSet } from '../utils/wordGeneration';
 import { CompletedWordOutcome, isAwaitingFinish } from '../utils/typingSession';
@@ -29,6 +30,7 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { wordStats: globalWordStats, setWordStats: setGlobalWordStats, wpmTarget, setWpmTarget } = usePersistedProgress(INITIAL_WORD_STATS);
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [showKeyboardLayout, setShowKeyboardLayout] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const wordsContainerRef = useRef<HTMLDivElement>(null);
   const wordSpanRefs = useRef<(HTMLSpanElement | null)[]>([]);
@@ -158,7 +160,7 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
         newlyGraduated={newlyGraduated}
       />
       <div className={`flex-1 min-h-screen flex items-center transition-all duration-300
-        ${isSidebarOpen ? 'ml-64' : ''}`}
+        ${isSidebarOpen ? 'ml-64' : ''}${showKeyboardLayout ? ' pb-[140px]' : ''}`}
       >
         <div className="flex flex-col items-center gap-4 w-full px-16" onClick={() => inputRef.current?.focus()}>
           <div className="flex items-center justify-between w-full px-8">
@@ -181,6 +183,15 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
                   max="200"
                   className="ml-2 w-20 p-1 bg-gray-700 text-white rounded"
                 />
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  data-testid="show-keyboard-layout"
+                  checked={showKeyboardLayout}
+                  onChange={e => setShowKeyboardLayout(e.target.checked)}
+                />
+                Show keyboard layout
               </label>
               <button
                 onClick={handleResetProgress}
@@ -253,6 +264,7 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
           />
         </div>
       </div>
+      <KeyboardLayout visible={showKeyboardLayout} />
     </>
   );
 }
