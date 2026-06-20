@@ -164,7 +164,7 @@ export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike }
         newlyGraduated={newlyGraduated}
       />
       <div className={`flex-1 min-h-screen flex items-center transition-all duration-300
-        ${isSidebarOpen ? 'ml-64' : ''}${showKeyboardLayout ? ' pb-[140px]' : ''}`}
+        ${isSidebarOpen ? 'ml-64' : ''}`}
       >
         <div className="flex flex-col items-center gap-4 w-full px-16" onClick={() => inputRef.current?.focus()}>
           <div className="flex items-center justify-between w-full px-8">
