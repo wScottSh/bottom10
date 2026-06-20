@@ -16,6 +16,7 @@ export interface StoredData {
   version: number;
   wordStats: Record<string, WordStats>;
   wpmTarget: number;
+  showKeyboardLayout: boolean;
 }
 
 function getDefaultData(): StoredData {
@@ -23,6 +24,7 @@ function getDefaultData(): StoredData {
     version: CURRENT_VERSION,
     wordStats: {},
     wpmTarget: DEFAULT_WPM_TARGET,
+    showKeyboardLayout: false,
   };
 }
 
@@ -76,6 +78,7 @@ function migrateFromLegacy(storage: StorageLike): StoredData {
       version: CURRENT_VERSION,
       wordStats,
       wpmTarget,
+      showKeyboardLayout: false,
     };
     try {
       storage.setItem(STORAGE_KEY, JSON.stringify(migrated));
@@ -99,7 +102,7 @@ export function loadAppData(storage?: StorageLike): StoredData {
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       return getDefaultData();
     }
-    const p = parsed as { version?: unknown; wordStats?: unknown; wpmTarget?: unknown };
+    const p = parsed as { version?: unknown; wordStats?: unknown; wpmTarget?: unknown; showKeyboardLayout?: unknown };
     let version = CURRENT_VERSION;
     if (typeof p.version === 'number') {
       version = p.version;
@@ -112,7 +115,8 @@ export function loadAppData(storage?: StorageLike): StoredData {
     if (typeof p.wpmTarget === 'number' && p.wpmTarget > 0) {
       wpmTarget = p.wpmTarget;
     }
-    return { version, wordStats, wpmTarget };
+    const showKeyboardLayout = typeof p.showKeyboardLayout === 'boolean' ? p.showKeyboardLayout : false;
+    return { version, wordStats, wpmTarget, showKeyboardLayout };
   } catch {
     return getDefaultData();
   }
@@ -125,12 +129,16 @@ export function saveAppData(partial: Partial<StoredData>, storage?: StorageLike)
     version: CURRENT_VERSION,
     wordStats: current.wordStats,
     wpmTarget: current.wpmTarget,
+    showKeyboardLayout: current.showKeyboardLayout,
   };
   if (partial.wordStats !== undefined) {
     toSave.wordStats = partial.wordStats;
   }
   if (partial.wpmTarget !== undefined) {
     toSave.wpmTarget = partial.wpmTarget;
+  }
+  if (partial.showKeyboardLayout !== undefined) {
+    toSave.showKeyboardLayout = partial.showKeyboardLayout;
   }
   try {
     safeStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));

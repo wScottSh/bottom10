@@ -5,6 +5,7 @@ import { WordStats } from '../utils/wordUtils';
 interface ProgressState {
   wordStats: Record<string, WordStats>;
   wpmTarget: number;
+  showKeyboardLayout: boolean;
 }
 
 export interface PersistedProgress {
@@ -12,6 +13,8 @@ export interface PersistedProgress {
   setWordStats: (stats: Record<string, WordStats>) => void;
   wpmTarget: number;
   setWpmTarget: (wpm: number) => void;
+  showKeyboardLayout: boolean;
+  setShowKeyboardLayout: (value: boolean) => void;
 }
 
 export function usePersistedProgress(
@@ -21,6 +24,7 @@ export function usePersistedProgress(
   const [state, setState] = useState<ProgressState>({
     wordStats: initialStats,
     wpmTarget: DEFAULT_WPM_TARGET,
+    showKeyboardLayout: false,
   });
   // Mirror of state so setters always see the current values without a stale closure.
   const stateRef = useRef<ProgressState>(state);
@@ -30,6 +34,7 @@ export function usePersistedProgress(
     const loaded: ProgressState = {
       wordStats: Object.keys(data.wordStats).length > 0 ? data.wordStats : initialStats,
       wpmTarget: data.wpmTarget,
+      showKeyboardLayout: data.showKeyboardLayout,
     };
     stateRef.current = loaded;
     setState(loaded);
@@ -45,12 +50,13 @@ export function usePersistedProgress(
         version: CURRENT_VERSION,
         wordStats: next.wordStats,
         wpmTarget: next.wpmTarget,
+        showKeyboardLayout: next.showKeyboardLayout,
       }));
     } catch {}
   }
 
   function setWordStats(stats: Record<string, WordStats>) {
-    const next: ProgressState = { wordStats: stats, wpmTarget: stateRef.current.wpmTarget };
+    const next: ProgressState = { wordStats: stats, wpmTarget: stateRef.current.wpmTarget, showKeyboardLayout: stateRef.current.showKeyboardLayout };
     stateRef.current = next;
     setState(next);
     persist(next);
@@ -58,7 +64,14 @@ export function usePersistedProgress(
 
   function setWpmTarget(wpm: number) {
     if (typeof wpm !== 'number' || wpm <= 0) return;
-    const next: ProgressState = { wordStats: stateRef.current.wordStats, wpmTarget: wpm };
+    const next: ProgressState = { wordStats: stateRef.current.wordStats, wpmTarget: wpm, showKeyboardLayout: stateRef.current.showKeyboardLayout };
+    stateRef.current = next;
+    setState(next);
+    persist(next);
+  }
+
+  function setShowKeyboardLayout(value: boolean) {
+    const next: ProgressState = { wordStats: stateRef.current.wordStats, wpmTarget: stateRef.current.wpmTarget, showKeyboardLayout: value };
     stateRef.current = next;
     setState(next);
     persist(next);
@@ -69,5 +82,7 @@ export function usePersistedProgress(
     setWordStats,
     wpmTarget: state.wpmTarget,
     setWpmTarget,
+    showKeyboardLayout: state.showKeyboardLayout,
+    setShowKeyboardLayout,
   };
 }

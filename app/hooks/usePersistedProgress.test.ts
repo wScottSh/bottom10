@@ -97,4 +97,48 @@ describe('usePersistedProgress', () => {
     // One getItem call on mount (loadAppData), not two
     expect(spy).toHaveBeenCalledTimes(1);
   });
+
+  it('loads persisted showKeyboardLayout from storage on mount', () => {
+    const storage = createInMemoryStorage({
+      [STORAGE_KEY]: JSON.stringify({ version: 1, wordStats: SAVED_STATS, wpmTarget: 70, showKeyboardLayout: true }),
+    });
+    const { result } = renderHook(() => usePersistedProgress(INITIAL, storage));
+    expect(result.current.showKeyboardLayout).toBe(true);
+  });
+
+  it('showKeyboardLayout defaults to false when not in storage', () => {
+    const storage = createInMemoryStorage({
+      [STORAGE_KEY]: JSON.stringify({ version: 1, wordStats: SAVED_STATS, wpmTarget: 70 }),
+    });
+    const { result } = renderHook(() => usePersistedProgress(INITIAL, storage));
+    expect(result.current.showKeyboardLayout).toBe(false);
+  });
+
+  it('setShowKeyboardLayout persists without clobbering wordStats or wpmTarget', () => {
+    const storage = createInMemoryStorage({
+      [STORAGE_KEY]: JSON.stringify({ version: 1, wordStats: SAVED_STATS, wpmTarget: 70, showKeyboardLayout: false }),
+    });
+    const { result } = renderHook(() => usePersistedProgress(INITIAL, storage));
+    act(() => {
+      result.current.setShowKeyboardLayout(true);
+    });
+    expect(result.current.showKeyboardLayout).toBe(true);
+    const stored = JSON.parse(storage.getItem(STORAGE_KEY) ?? '{}');
+    expect(stored.showKeyboardLayout).toBe(true);
+    expect(stored.wpmTarget).toBe(70);
+    expect(stored.wordStats).toEqual(SAVED_STATS);
+  });
+
+  it('setWordStats does not clobber showKeyboardLayout', () => {
+    const storage = createInMemoryStorage({
+      [STORAGE_KEY]: JSON.stringify({ version: 1, wordStats: SAVED_STATS, wpmTarget: 70, showKeyboardLayout: true }),
+    });
+    const { result } = renderHook(() => usePersistedProgress(INITIAL, storage));
+    const newStats = { world: { word: 'world', time: 100, attempts: 1, lastScore: 0.2 } };
+    act(() => {
+      result.current.setWordStats(newStats);
+    });
+    const stored = JSON.parse(storage.getItem(STORAGE_KEY) ?? '{}');
+    expect(stored.showKeyboardLayout).toBe(true);
+  });
 });

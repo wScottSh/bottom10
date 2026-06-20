@@ -1,5 +1,5 @@
 import { test, expect } from 'vitest';
-import { loadWordStats, saveWordStats, loadWpmTarget, saveWpmTarget, CURRENT_VERSION, loadAppData, resetAppData, createInMemoryStorage as createMockStorage } from './persistence';
+import { loadWordStats, saveWordStats, loadWpmTarget, saveWpmTarget, CURRENT_VERSION, loadAppData, saveAppData, resetAppData, createInMemoryStorage as createMockStorage } from './persistence';
 
 test('loadWordStats returns empty object for missing data', () => {
   const storage = createMockStorage();
@@ -58,6 +58,35 @@ test('resetAppData works on empty storage without error', () => {
   const data = loadAppData(storage);
   expect(data.wordStats).toEqual({});
   expect(data.wpmTarget).toBe(40);
+});
+
+test('showKeyboardLayout defaults to false when missing', () => {
+  const storage = createMockStorage();
+  const data = loadAppData(storage);
+  expect(data.showKeyboardLayout).toBe(false);
+});
+
+test('showKeyboardLayout round-trips through saveAppData/loadAppData', () => {
+  const storage = createMockStorage();
+  saveAppData({ showKeyboardLayout: true }, storage);
+  const data = loadAppData(storage);
+  expect(data.showKeyboardLayout).toBe(true);
+});
+
+test('saveWordStats does not clobber showKeyboardLayout', () => {
+  const storage = createMockStorage();
+  saveAppData({ showKeyboardLayout: true }, storage);
+  saveWordStats({ 'the': { word: 'the', time: 100, attempts: 5, lastScore: 20 } }, storage);
+  const data = loadAppData(storage);
+  expect(data.showKeyboardLayout).toBe(true);
+});
+
+test('resetAppData resets showKeyboardLayout to false', () => {
+  const storage = createMockStorage();
+  saveAppData({ showKeyboardLayout: true }, storage);
+  resetAppData(storage);
+  const data = loadAppData(storage);
+  expect(data.showKeyboardLayout).toBe(false);
 });
 
 test('handles legacy data migration from wordStats/wpmTarget keys', () => {

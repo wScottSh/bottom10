@@ -28,9 +28,8 @@ const INITIAL_WORD_STATS = createInitialWordStats();
 
 export default function TypingTest({ clock = WALL_CLOCK }: { clock?: ClockLike } = {}) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const { wordStats: globalWordStats, setWordStats: setGlobalWordStats, wpmTarget, setWpmTarget } = usePersistedProgress(INITIAL_WORD_STATS);
+  const { wordStats: globalWordStats, setWordStats: setGlobalWordStats, wpmTarget, setWpmTarget, showKeyboardLayout, setShowKeyboardLayout } = usePersistedProgress(INITIAL_WORD_STATS);
   const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [showKeyboardLayout, setShowKeyboardLayout] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const wordsContainerRef = useRef<HTMLDivElement>(null);
   const wordSpanRefs = useRef<(HTMLSpanElement | null)[]>([]);
