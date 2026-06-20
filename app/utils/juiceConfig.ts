@@ -3,9 +3,9 @@
 
 export const TENSION_SHAKE = {
   // Peak translation amplitude per axis at full intensity (in pixels).
-  maxTranslatePx: 3.5,
+  maxTranslatePx: 1.225,
   // Peak rotation amplitude at full intensity (in degrees).
-  maxRotateDeg: 2.5,
+  maxRotateDeg: 0.875,
   // Base jitter cycle duration (in milliseconds).
   jitterDurationMs: 160,
 } as const;
